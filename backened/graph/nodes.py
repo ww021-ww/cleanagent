@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict
 
 from graph.state import VulnProcessingState
+from graph.recovery_nodes import append_trace_event
 from graph.utils import normalize_jvn_id
 
 logger = logging.getLogger(__name__)
@@ -396,6 +397,9 @@ async def store_node(state: VulnProcessingState, config: Dict) -> VulnProcessing
                 **state,
                 'stored': True, 'storage_status': 'success',
                 'final_status': 'success', 'end_time': time.time(),
+                'trace_events': append_trace_event(
+                    state, 'store', 'storage_success', decision='PASS'
+                ),
             }
 
         logger.error(f"❌ 存储失败: {file_name}")
@@ -427,7 +431,14 @@ def mark_low_quality_node(state: VulnProcessingState, config: Dict) -> VulnProce
             strategy=state.get('extraction_strategy', 'rule'),
         )
 
-    return {**state, 'final_status': 'low_quality', 'end_time': time.time()}
+    return {
+        **state,
+        'final_status': 'low_quality',
+        'end_time': time.time(),
+        'trace_events': append_trace_event(
+            state, 'low_quality', 'recovery_exhausted', decision='ABORT'
+        ),
+    }
 
 
 def reflect_node(state: VulnProcessingState, config: Dict) -> VulnProcessingState:
@@ -467,4 +478,7 @@ def reflect_node(state: VulnProcessingState, config: Dict) -> VulnProcessingStat
         'quality_score': 0.0,
         'recovery_attempted': False,
         'recovered_fields': [],
+        'trace_events': append_trace_event(
+            state, 'reflect', 'quality_below_threshold', decision='REPLAN'
+        ),
     }

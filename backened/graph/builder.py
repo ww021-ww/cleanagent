@@ -15,6 +15,7 @@ from graph.nodes import (
     mark_low_quality_node,
     reflect_node,
 )
+from graph.recovery_nodes import diagnose_failure_node
 
 logger = logging.getLogger(__name__)
 
@@ -25,29 +26,24 @@ def route_after_extract(state: VulnProcessingState, config: Dict) -> str:
     return 'clean'
 
 
-def check_quality(state: VulnProcessingState, config: Dict) -> str:
-    """
-    质量门批 — 三路路由
-
-      store       : 质量达标，正常入库
-      reflect     : 质量未达标 且 未达最大重试次数，升级策略后重试
-      low_quality : 质量未达标 且 已用尽重试次数
-    """
+def route_after_clean(state: VulnProcessingState, config: Dict) -> str:
     quality_threshold = config.get('agents', {}).get('cleaner_validator', {}).get('quality_threshold', 0.7)
-    quality_score = state.get('quality_score', 0.0)
+    return 'store' if state.get('quality_score', 0.0) >= quality_threshold else 'diagnose_failure'
 
-    if quality_score >= quality_threshold:
-        return 'store'
 
+def route_after_diagnosis(state: VulnProcessingState, config: Dict) -> str:
     reflection_cfg = config.get('agentic', {}).get('reflection', {})
     if reflection_cfg.get('enabled', False):
         max_retries = reflection_cfg.get('max_retries', 2)
         if state.get('retry_count', 0) < max_retries:
-            logger.debug(f"Quality check → reflect (score={quality_score:.2f}, retry={state.get('retry_count', 0)})")
             return 'reflect'
-
-    logger.debug(f"Quality check → low_quality (score={quality_score:.2f})")
     return 'low_quality'
+
+
+def check_quality(state: VulnProcessingState, config: Dict) -> str:
+    """Backward-compatible combined quality route."""
+    route = route_after_clean(state, config)
+    return route if route == 'store' else route_after_diagnosis(state, config)
 
 
 def build_vuln_processing_graph(config: Dict) -> StateGraph:
@@ -55,10 +51,9 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
     构建漏洞数据处理图
 
     图结构：
-      START → extract → clean → [quality_gate]
-                  ↑                    ├→ store → END
-                  ├──── reflect ◄───┤
-                                       └→ low_quality → END
+      START → extract → clean → store → END
+                  ↑        └→ diagnose → reflect / low_quality
+                  └─────────────────────┘
     """
     logger.info("Building vulnerability processing graph...")
 
@@ -69,7 +64,9 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
     store_with_config        = partial(store_node,            config=config)
     low_quality_with_config  = partial(mark_low_quality_node, config=config)
     reflect_with_config      = partial(reflect_node,          config=config)
-    check_quality_with_config = partial(check_quality,        config=config)
+    diagnose_with_config     = partial(diagnose_failure_node, config=config)
+    route_after_clean_with_config = partial(route_after_clean, config=config)
+    route_after_diagnosis_with_config = partial(route_after_diagnosis, config=config)
     route_after_extract_with_config = partial(route_after_extract, config=config)
 
     workflow.add_node("extract",     extract_with_config)
@@ -77,6 +74,7 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
     workflow.add_node("store",       store_with_config)
     workflow.add_node("low_quality", low_quality_with_config)
     workflow.add_node("reflect",     reflect_with_config)
+    workflow.add_node("diagnose_failure", diagnose_with_config)
 
     workflow.set_entry_point("extract")
     workflow.add_conditional_edges(
@@ -86,8 +84,13 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
     )
     workflow.add_conditional_edges(
         "clean",
-        check_quality_with_config,
-        {"store": "store", "reflect": "reflect", "low_quality": "low_quality"},
+        route_after_clean_with_config,
+        {"store": "store", "diagnose_failure": "diagnose_failure"},
+    )
+    workflow.add_conditional_edges(
+        "diagnose_failure",
+        route_after_diagnosis_with_config,
+        {"reflect": "reflect", "low_quality": "low_quality"},
     )
     workflow.add_edge("reflect", "extract")   # 反思循环
     workflow.add_edge("store",       END)

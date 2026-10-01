@@ -38,6 +38,8 @@ class VulnProcessingState(TypedDict):
     reflection_notes: str              # 反思分析笔记
     recovery_attempted: bool           # 是否已尝试 LLM 字段修复
     recovered_fields: List[str]        # 本次修复成功的字段列表
+    failure_profile: Optional[Dict]     # 结构化失败诊断
+    trace_events: List[Dict]            # 安全审计轨迹（不记录原始内容）
 
     # ========== 错误处理 ==========
     errors: List[str]                  # 错误列表
@@ -82,6 +84,8 @@ def create_initial_state(task_id: str, file_path: str) -> VulnProcessingState:
         reflection_notes='',
         recovery_attempted=False,
         recovered_fields=[],
+        failure_profile=None,
+        trace_events=[],
         errors=[],
         warnings=[],
         retry_count=0,
