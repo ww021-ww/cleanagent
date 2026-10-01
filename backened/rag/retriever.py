@@ -126,7 +126,7 @@ class RAGRetriever:
         向量内容 = title + description + overview + source + severity
         """
         if not self.enabled or not self._client:
-            return
+            raise RuntimeError("RAG indexing is disabled or Milvus is unavailable")
 
         vuln_id = (
             vuln_data.get("vuln_id")
@@ -134,37 +134,38 @@ class RAGRetriever:
             or vuln_data.get("cve_id", "")
         )
         if not vuln_id:
-            return
+            raise ValueError("Vulnerability ID is required for RAG indexing")
 
-        doc = "\n".join(filter(None, [
+        content = list(filter(None, [
             vuln_data.get("title", ""),
             vuln_data.get("description", ""),
             vuln_data.get("overview", ""),
+        ]))
+        if not content:
+            raise ValueError(f"No indexable content for vulnerability {vuln_id}")
+        doc = "\n".join(content + [
             f"来源: {source}",
             f"严重程度: {vuln_data.get('severity', '')}",
-        ]))
-        if not doc.strip():
-            return
+        ])
 
         vector = self._embed.embed(doc)
         if len(vector) != self._embed.dim:
-            logger.warning(f"RAG 写入跳过 [{vuln_id}]：向量维度异常，expected={self._embed.dim}, actual={len(vector)}")
-            return
+            raise ValueError(
+                f"Embedding dimension mismatch for {vuln_id}: "
+                f"expected={self._embed.dim}, actual={len(vector)}"
+            )
         record_id = f"{source}_{vuln_id}"[:128]
 
-        try:
-            self._client.upsert(
-                collection_name=self.collection_name,
-                data=[{
-                    "id": record_id,
-                    "vector": vector,
-                    "source": source[:32],
-                    "vuln_id": str(vuln_id)[:64],
-                    "document": doc[:65535],
-                }],
-            )
-        except Exception as e:
-            logger.debug(f"RAG 写入失败 [{vuln_id}]: {e}")
+        self._client.upsert(
+            collection_name=self.collection_name,
+            data=[{
+                "id": record_id,
+                "vector": vector,
+                "source": source[:32],
+                "vuln_id": str(vuln_id)[:64],
+                "document": doc[:65535],
+            }],
+        )
 
     # ──────────────────────────────────────────────
     #  检索（extract_node 调用）

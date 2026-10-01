@@ -104,6 +104,15 @@ performance:
 # -------------------- 智能增强配置 --------------------
 # 各增强模块均可独立启停，不影响主干流程
 agentic:
+  # MySQL 为事实库，Milvus 通过 Outbox 异步重试并保持最终一致
+  vector_outbox:
+    batch_size: 50
+    poll_seconds: 2
+    lease_seconds: 60
+    max_attempts: 5
+    retry_base_seconds: 5
+    retry_max_seconds: 300
+
   # 质量门槛与数据库非空约束分离：ID 仍由字段配置校验，描述缺失进入恢复；
   # 影响对象和修复信息缺失只扣分，不强制模型补写。
   quality_gate:

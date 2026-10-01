@@ -407,9 +407,8 @@ async def store_node(state: VulnProcessingState, config: Dict) -> VulnProcessing
             total_info = f" (共{1 + multi_success}条, 失败{multi_failed}条)" if all_extracted else ""
             logger.info(f"✅ 存储成功: {file_name}{subtable_info}{total_info}")
 
-            # 存储成功后将 ID 写入记忆，并写入 RAG 向量库（复用 id_field / src_config）
+            # MySQL 事务已创建向量 Outbox；Milvus 由独立 Worker 最终一致地写入。
             memory = config.get('_memory')
-            rag = config.get('_rag')
             vuln_id = final_data.get(id_field) if id_field else None
             if memory:
                 if vuln_id:
@@ -419,12 +418,9 @@ async def store_node(state: VulnProcessingState, config: Dict) -> VulnProcessing
                     quality_score=state.get('quality_score', 0.0),
                     strategy=state.get('extraction_strategy', 'rule'),
                 )
-            if rag:
-                await asyncio.to_thread(rag.index_vulnerability, final_data, source)
-
             return {
                 **state,
-                'stored': True, 'storage_status': 'success',
+                'stored': True, 'storage_status': 'success_pending_index',
                 'final_status': 'success', 'end_time': time.time(),
                 'trace_events': append_trace_event(
                     state, 'store', 'storage_success', decision='PASS'
