@@ -100,6 +100,11 @@ performance:
 # -------------------- 智能增强配置 --------------------
 # 各增强模块均可独立启停，不影响主干流程
 agentic:
+  # Phase 1 异常恢复：只做确定性诊断与脱敏 Trace，不生成或应用字段 Patch
+  recovery:
+    enabled: true
+    trace_max_chars: 512
+
   # 反思重试：提取质量不达标时自动升级策略重试
   reflection:
     enabled: true

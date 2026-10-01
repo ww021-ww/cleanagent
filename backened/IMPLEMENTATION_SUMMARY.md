@@ -129,3 +129,18 @@ C/I/A: N→None, P→Partial, C→Complete
 3. 验证修订历史提取的完整性
 4. 验证参考信息多值收集的正确性
 
+---
+
+## 异常恢复 Phase 1
+
+低质量样本现在按以下顺序执行：
+
+`Extract → Clean/Validate → DiagnoseFailure → Reflect → Extract`，达到重试上限后进入 `LowQuality`；质量达标样本仍由 `Clean/Validate` 直接进入 `Store`。
+
+- `Clean/Validate` 在兼容原有 `errors/warnings/is_valid` 的基础上，补充字段级问题和证据缺口。
+- `DiagnoseFailure` 仅根据候选数据与校验结果生成结构化 `FailureProfile`，不调用 LLM、外部工具或数据库，也不修改漏洞字段。
+- Trace 只记录任务、节点、原因码、耗时和决策，不记录 API Key、原始文件、完整候选数据或模型思维链。
+- `PASS` 表示存储成功，`REPLAN` 表示沿用 `rule → hybrid → llm_full` 升级重试，`ABORT` 表示重试预算耗尽。
+
+配置位于 `config/agent_config.yaml` 的 `agentic.recovery`。Phase 1 不包含字段 Patch 应用、受约束 LLM Planner、HIL 审核或跨库补偿，这些能力留给后续阶段。
+
