@@ -102,6 +102,48 @@ performance:
 # -------------------- 智能增强配置 --------------------
 # 各增强模块均可独立启停，不影响主干流程
 agentic:
+  # 质量门槛与数据库非空约束分离：ID 仍由字段配置校验，描述缺失进入恢复；
+  # 影响对象和修复信息缺失只扣分，不强制模型补写。
+  quality_gate:
+    enabled: true
+    profiles:
+      cve:
+        required_any:
+          description: [containers_cna_descriptions_value]
+        important_any:
+          affected: [containers_cna_affected_product, containers_cna_affected_vendor, containers_cna_affected_cpes]
+          remediation: [containers_cna_solutions_value, containers_cna_workarounds_value]
+      nvd:
+        required_any:
+          description: [descriptions_value]
+        important_any:
+          published: [published, lastModified]
+          references: [references_url]
+      cnvd:
+        required_any:
+          description: [description]
+        important_any:
+          affected: [products]
+          remediation: [solutions, Vendor Patch]
+      cisa:
+        required_any:
+          description: [shortDescription]
+        important_any:
+          affected: [product, vendorProject]
+          remediation: [requiredAction]
+      cert:
+        required_any:
+          description: [overview, clean_desc]
+        important_any:
+          affected: [sysaffected]
+          remediation: [resolution, workarounds]
+      jvn:
+        required_any:
+          description: [overview, description]
+        important_any:
+          affected: [Affected Systems/Products]
+          remediation: [solutions, workaround]
+
   # Phase 1 异常恢复：只做确定性诊断与脱敏 Trace，不生成或应用字段 Patch
   recovery:
     enabled: true

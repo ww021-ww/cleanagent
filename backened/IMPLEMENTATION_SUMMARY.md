@@ -174,3 +174,7 @@ python recovery_ab.py --directory tests/fixtures --pattern "*.json" --output rec
 
 A/B 报告包含成功率、异常恢复率、未验证恢复代理指标、平均质量分、LLM/工具调用数、平均 step 和耗时。`unverified_recoveries` 仅表示异常样本通过但没有 accepted Verification，并不等同于已确认的错误字段。
 
+### 质量门槛
+
+`agentic.quality_gate` 与数据库字段的 `required` 约束分离：各来源的漏洞 ID 仍由 Schema 校验，描述类字段缺失会进入异常恢复，影响对象和修复信息缺失只扣分。质量完整度按配置的质量项计算，不再把“只返回一个且有值的 ID”计为 100% 完整。
+

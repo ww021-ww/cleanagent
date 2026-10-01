@@ -244,6 +244,50 @@ class CleanerValidatorAgent:
                     'field': field_name,
                     'reason': 'required_field_missing',
                 })
+
+        quality_cfg = getattr(self, 'config', {}).get('agentic', {}).get(
+            'quality_gate', {}
+        )
+        quality_profile = quality_cfg.get('profiles', {}).get(source.lower(), {})
+        if quality_cfg.get('enabled', False) and quality_profile:
+            required_any = quality_profile.get('required_any', {})
+            important_any = quality_profile.get('important_any', {})
+
+            for fields in required_any.values():
+                if not any(data.get(field) for field in fields):
+                    target = fields[0]
+                    message = f"Missing required field: {target}"
+                    errors.append(message)
+                    field_issues.append({
+                        'field': target,
+                        'code': 'missing_required',
+                        'severity': 'error',
+                        'message': message,
+                        'evidence_required': True,
+                    })
+                    evidence_gaps.append({
+                        'field': target,
+                        'reason': 'quality_field_missing',
+                    })
+
+            for label, fields in important_any.items():
+                if not any(data.get(field) for field in fields):
+                    message = f"Missing important quality field: {label}"
+                    warnings.append(message)
+                    field_issues.append({
+                        'field': fields[0],
+                        'code': 'missing_important',
+                        'severity': 'warning',
+                        'message': message,
+                        'evidence_required': False,
+                    })
+
+            quality_groups = [[field] for field in required_fields]
+            quality_groups += list(required_any.values()) + list(important_any.values())
+            quality_filled = sum(
+                any(data.get(field) for field in fields)
+                for fields in quality_groups
+            )
         
         # 2. 字段类型检查
         for field in config.get('fields', []):
@@ -277,13 +321,17 @@ class CleanerValidatorAgent:
                         'evidence_required': False,
                     })
         
-        return {
+        result = {
             'errors': errors,
             'warnings': warnings,
             'is_valid': len(errors) == 0,
             'field_issues': field_issues,
             'evidence_gaps': evidence_gaps,
         }
+        if quality_cfg.get('enabled', False) and quality_profile:
+            result['quality_filled'] = quality_filled
+            result['quality_total'] = len(quality_groups)
+        return result
     
     def check_type(self, value: Any, expected_type: str) -> bool:
         """检查值的类型是否匹配"""
@@ -328,8 +376,10 @@ class CleanerValidatorAgent:
         score -= len(validation['warnings']) * 0.05
         
         # 完整性分：字段填充率（权重20%）
-        filled_count = sum(1 for v in data.values() if v)
-        total_count = len(data)
+        filled_count = validation.get(
+            'quality_filled', sum(1 for v in data.values() if v)
+        )
+        total_count = validation.get('quality_total', len(data))
         completeness = filled_count / total_count if total_count > 0 else 0
         score += completeness * 0.2
         
