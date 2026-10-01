@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from config import get_db_uri
+from fastapi import HTTPException, Request
 
 
 engine = None
@@ -36,3 +37,10 @@ def get_db_session():
         yield session
     finally:
         session.close()
+
+
+def get_processing_runtime(request: Request):
+    runtime = getattr(request.app.state, "processing_runtime", None)
+    if runtime is None:
+        raise HTTPException(status_code=503, detail="Processing runtime unavailable")
+    return runtime

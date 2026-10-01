@@ -2,6 +2,7 @@ import time
 import logging
 import os
 import uuid
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,11 +11,31 @@ from pydantic import BaseModel
 from api.routers.health import router as health_router
 from api.routers.vulns import router as vulns_router
 from api.routers.stats import router as stats_router
+from api.routers.reviews import router as reviews_router
+from api.runtime import open_processing_runtime
 from config import load_yaml_config
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="CleanAgent Vulnerability Search API", version="1.0.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with AsyncExitStack() as stack:
+        try:
+            runtime = await stack.enter_async_context(
+                open_processing_runtime(load_yaml_config())
+            )
+        except Exception as exc:
+            runtime = None
+            logger.warning(f"ProcessingRuntime 初始化失败: {exc}")
+        app.state.processing_runtime = runtime
+        yield
+
+
+app = FastAPI(
+    title="CleanAgent Vulnerability Search API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +48,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(vulns_router)
 app.include_router(stats_router)
+app.include_router(reviews_router)
 
 # ──────────────────────────────────────────────
 #  ChatAgent 初始化（延迟加载，避免循环依赖）
