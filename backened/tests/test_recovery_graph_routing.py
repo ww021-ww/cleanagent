@@ -14,6 +14,7 @@ def base_config(max_retries=2):
     return {
         "agents": {"cleaner_validator": {"quality_threshold": 0.5}},
         "agentic": {
+            "recovery": {"enabled": True},
             "reflection": {"enabled": True, "max_retries": max_retries}
         },
     }
@@ -30,6 +31,13 @@ def test_quality_routes_normal_records_to_store_and_anomalies_to_diagnosis():
 def test_diagnosed_anomaly_respects_existing_retry_budget():
     assert route_after_diagnosis({"retry_count": 0}, base_config()) == "reflect"
     assert route_after_diagnosis({"retry_count": 2}, base_config()) == "low_quality"
+
+
+def test_disabled_recovery_keeps_legacy_quality_routing():
+    config = base_config()
+    config["agentic"]["recovery"]["enabled"] = False
+
+    assert route_after_clean({"quality_score": 0.2, "retry_count": 0}, config) == "reflect"
 
 
 def test_initial_state_contains_recovery_defaults():

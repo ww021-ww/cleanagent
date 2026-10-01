@@ -28,7 +28,11 @@ def route_after_extract(state: VulnProcessingState, config: Dict) -> str:
 
 def route_after_clean(state: VulnProcessingState, config: Dict) -> str:
     quality_threshold = config.get('agents', {}).get('cleaner_validator', {}).get('quality_threshold', 0.7)
-    return 'store' if state.get('quality_score', 0.0) >= quality_threshold else 'diagnose_failure'
+    if state.get('quality_score', 0.0) >= quality_threshold:
+        return 'store'
+    if not config.get('agentic', {}).get('recovery', {}).get('enabled', False):
+        return route_after_diagnosis(state, config)
+    return 'diagnose_failure'
 
 
 def route_after_diagnosis(state: VulnProcessingState, config: Dict) -> str:
@@ -43,7 +47,7 @@ def route_after_diagnosis(state: VulnProcessingState, config: Dict) -> str:
 def check_quality(state: VulnProcessingState, config: Dict) -> str:
     """Backward-compatible combined quality route."""
     route = route_after_clean(state, config)
-    return route if route == 'store' else route_after_diagnosis(state, config)
+    return route if route != 'diagnose_failure' else route_after_diagnosis(state, config)
 
 
 def build_vuln_processing_graph(config: Dict) -> StateGraph:
@@ -85,7 +89,12 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
     workflow.add_conditional_edges(
         "clean",
         route_after_clean_with_config,
-        {"store": "store", "diagnose_failure": "diagnose_failure"},
+        {
+            "store": "store",
+            "diagnose_failure": "diagnose_failure",
+            "reflect": "reflect",
+            "low_quality": "low_quality",
+        },
     )
     workflow.add_conditional_edges(
         "diagnose_failure",

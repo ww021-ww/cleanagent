@@ -17,7 +17,10 @@ CONFIG_PATH = Path(__file__).parents[1] / "config" / "agent_config.yaml"
 
 
 def test_recovery_cases_keep_normal_path_and_classify_anomalies():
-    config = {"agents": {"cleaner_validator": {"quality_threshold": 0.7}}}
+    config = {
+        "agents": {"cleaner_validator": {"quality_threshold": 0.7}},
+        "agentic": {"recovery": {"enabled": True}},
+    }
 
     for case in CASES:
         assert route_after_clean(case, config) == case["expected_route"]

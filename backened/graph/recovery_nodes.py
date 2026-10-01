@@ -1,5 +1,6 @@
 """Deterministic recovery diagnosis and bounded trace events."""
 import time
+from typing import Dict, List, Optional
 
 from agent.recovery.diagnosis import diagnose_failure
 from agent.recovery.models import TraceEvent
@@ -10,9 +11,9 @@ def append_trace_event(
     state: VulnProcessingState,
     node: str,
     reason_code: str,
-    decision: str | None = None,
+    decision: Optional[str] = None,
     duration_ms: float = 0.0,
-) -> list[dict]:
+) -> List[Dict]:
     event = TraceEvent(
         task_id=state.get("task_id", ""),
         node=node,
@@ -26,7 +27,7 @@ def append_trace_event(
 
 
 def diagnose_failure_node(
-    state: VulnProcessingState, config: dict
+    state: VulnProcessingState, config: Dict
 ) -> VulnProcessingState:
     started = time.perf_counter()
     profile = diagnose_failure(
