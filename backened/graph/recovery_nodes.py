@@ -111,7 +111,20 @@ async def plan_recovery_node(
                     "llm": budget.max_llm_calls - state.get("llm_call_count", 0),
                 },
             }
-            decision = await asyncio.to_thread(planner.plan, context)
+            deadline_at = state.get("deadline_at", 0.0)
+            timeout = (
+                max(0.001, deadline_at - time.time())
+                if deadline_at > 0
+                else budget.deadline_seconds
+            )
+            try:
+                decision = await asyncio.wait_for(
+                    asyncio.to_thread(planner.plan, context), timeout=timeout
+                )
+            except asyncio.TimeoutError:
+                decision = RecoveryDecision(
+                    decision="STOP", reason_code="planner_timeout"
+                )
             llm_calls = state.get("llm_call_count", 0) + 1
             steps = state.get("step_count", 0) + 1
         else:
@@ -171,9 +184,12 @@ async def execute_action_node(
 ) -> VulnProcessingState:
     action = AuthorizedAction.model_validate(state.get("pending_action"))
     registry = config.get("_recovery_registry")
-    timeout = config.get("agentic", {}).get("recovery", {}).get(
+    configured_timeout = config.get("agentic", {}).get("recovery", {}).get(
         "tool_timeout_seconds", 8
     )
+    deadline_at = state.get("deadline_at", 0.0)
+    remaining = deadline_at - time.time() if deadline_at > 0 else float("inf")
+    timeout = max(0.001, min(float(configured_timeout), remaining))
     context = {
         "raw_content": state.get("raw_content") or "",
         "file_path": state.get("file_path"),

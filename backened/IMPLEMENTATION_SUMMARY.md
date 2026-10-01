@@ -154,7 +154,7 @@ C/I/A: N→None, P→Partial, C→Complete
 
 - Planner 只能选择 `search_raw_text`、`parse_json_path`、`normalize_field`、`nvd_lookup` 或明确停止，不能直接修改候选数据。
 - Guard 校验工具白名单、参数模型、目标字段、真实 CVE ID 和步数/工具/LLM/时间预算。
-- Verifier 仅接受带来源与位置的证据；权威字段只接受原文件确定性解析、规范化结果或 NVD 官方数据，冲突进入人工复核。
+- Verifier 仅接受带来源与位置的证据；权威字段只接受原文件确定性解析、规范化结果或 NVD 官方数据，冲突会标记为需人工复核并进入 LowQuality。
 - 只有验证通过且重新计算后的质量分达到阈值才进入 Store；否则在预算内重新规划，预算耗尽后进入 LowQuality。
 - 默认关闭新循环，原有 `rule → hybrid → llm_full` 路径保持兼容；开启后旧的自由字段补全旁路自动停用。
 

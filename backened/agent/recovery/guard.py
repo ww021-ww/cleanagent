@@ -24,10 +24,12 @@ class RecoveryActionGuard:
         registry: RecoveryToolRegistry,
         now: float = None,
     ) -> Union[AuthorizedAction, ActionRejection]:
+        # Graph counters already include the Planner call that produced this action.
+        current_call = state.get("recovery_decision") == decision.model_dump()
         if self.budget.is_exhausted(
-            state.get("step_count", 0),
+            max(0, state.get("step_count", 0) - int(current_call)),
             state.get("tool_call_count", 0),
-            state.get("llm_call_count", 0),
+            max(0, state.get("llm_call_count", 0) - int(current_call)),
             state.get("deadline_at", 0.0),
             now=now,
         ):

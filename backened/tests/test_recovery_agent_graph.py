@@ -143,6 +143,50 @@ class SlowRegistry(RecoveryToolRegistry):
         return ToolResult(success=True, tool_name=name, data={})
 
 
+class SlowPlanner:
+    def plan(self, context):
+        time.sleep(0.05)
+        return RecoveryDecision(decision="ABORT", reason_code="too_late")
+
+
+def test_planner_is_bounded_by_recovery_deadline():
+    cfg = config(planner=SlowPlanner())
+    state = recovery_state()
+    state["deadline_at"] = time.time() + 0.01
+
+    state = asyncio.run(plan_recovery_node(state, cfg))
+
+    assert state["recovery_decision"]["decision"] == "STOP"
+    assert state["recovery_decision"]["reason_code"] == "planner_timeout"
+    assert decide_next_node(state, cfg)["final_decision"] == "ABORT"
+
+
+def test_last_allowed_planner_call_can_still_execute_its_action():
+    planner = FakePlanner(
+        RecoveryDecision(
+            decision="CALL_TOOL",
+            reason_code="recover_description",
+            target_fields=["description"],
+            tool_name="search_raw_text",
+            tool_args={"field_hint": "description", "keywords": []},
+            expected_evidence="current file text",
+        )
+    )
+    cfg = config(
+        planner=planner,
+        budget=RecoveryBudget(max_steps=3, max_tool_calls=5, max_llm_calls=3),
+    )
+    state = recovery_state()
+    state.update(step_count=2, llm_call_count=2)
+
+    state = asyncio.run(plan_recovery_node(state, cfg))
+    state = guard_action_node(state, cfg)
+
+    assert state["step_count"] == 3
+    assert state["llm_call_count"] == 3
+    assert state["pending_action"]["tool_name"] == "search_raw_text"
+
+
 def test_tool_timeout_is_observed_then_replanned_within_budget():
     cfg = config(registry=SlowRegistry())
     cfg["agentic"]["recovery"]["tool_timeout_seconds"] = 0.01
