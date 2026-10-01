@@ -1,4 +1,4 @@
-"""Side-effect-free A/B runner for legacy and constrained recovery paths."""
+"""Side-effect-free A/B runner for rule-only and Recovery Agent paths."""
 
 import argparse
 import asyncio
@@ -16,8 +16,10 @@ def build_variant_config(config: Dict, agent_loop_enabled: bool) -> Dict:
     variant = copy.deepcopy(config)
     variant.setdefault("processing", {})["dry_run"] = True
     agentic = variant.setdefault("agentic", {})
-    agentic.setdefault("recovery", {})["enabled"] = True
+    agentic.setdefault("recovery", {})["enabled"] = agent_loop_enabled
     agentic["recovery"]["agent_loop_enabled"] = agent_loop_enabled
+    agentic.setdefault("reflection", {})["enabled"] = False
+    agentic.setdefault("field_recovery", {})["enabled"] = False
     agentic.setdefault("memory", {})["enabled"] = False
     agentic.setdefault("rag", {})["enabled"] = False
     return variant
@@ -61,17 +63,22 @@ def summarize_results(results: List[Dict], elapsed_seconds: float) -> Dict:
     }
 
 
-def compare_results(legacy: Dict, agent: Dict) -> Dict:
-    metrics = (
-        "successes", "success_rate", "recovered", "recovery_rate",
-        "unverified_recoveries", "average_quality", "llm_calls",
-        "tool_calls", "elapsed_seconds",
-    )
+def compare_results(baseline: Dict, agent: Dict) -> Dict:
+    metrics = [
+        key for key in (
+            "successes", "success_rate", "recovered", "recovery_rate",
+            "unverified_recoveries", "average_quality", "recoverable_field_accuracy",
+            "safe_block_rate", "false_modification_rate",
+            "protected_id_preservation_rate", "llm_calls", "tool_calls",
+            "elapsed_seconds",
+        )
+        if key in baseline and key in agent
+    ]
     return {
-        "legacy": legacy,
+        "baseline": baseline,
         "agent": agent,
         "delta": {
-            key: round(agent[key] - legacy[key], 4)
+            key: round(agent[key] - baseline[key], 4)
             for key in metrics
         },
     }
@@ -86,9 +93,9 @@ async def _run_variant(paths: Iterable[Path], config: Dict) -> Dict:
 
 async def run_ab(paths: Iterable[Path], config: Dict) -> Dict:
     files = list(paths)
-    legacy = await _run_variant(files, build_variant_config(config, False))
+    baseline = await _run_variant(files, build_variant_config(config, False))
     agent = await _run_variant(files, build_variant_config(config, True))
-    return compare_results(legacy, agent)
+    return compare_results(baseline, agent)
 
 
 def _files(file_path: str, directory: str, pattern: str) -> List[Path]:
@@ -98,7 +105,7 @@ def _files(file_path: str, directory: str, pattern: str) -> List[Path]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="对比旧恢复链路与受约束 Agent Loop")
+    parser = argparse.ArgumentParser(description="对比规则基线与受约束 Recovery Agent")
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--file")
     inputs.add_argument("--directory")

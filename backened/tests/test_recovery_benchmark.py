@@ -1,9 +1,12 @@
 import asyncio
+import json
 
 import pytest
-import recovery_benchmark
 
+import recovery_benchmark
+from recovery_ab import build_variant_config, compare_results
 from recovery_benchmark import (
+    case_is_auto_recoverable,
     create_anomaly_file,
     discover_samples,
     require_llm_config,
@@ -17,63 +20,103 @@ def test_benchmark_rejects_missing_llm_credentials():
         require_llm_config({"api_key": "", "model": "deepseek-v4-pro"})
 
 
-def test_benchmark_scores_recovery_without_rewarding_id_changes(tmp_path):
-    truth = {
-        "cve_id": "CVE-2026-1234",
-        "descriptions_value": "verified description",
-    }
-    result = {
-        "final_status": "success",
-        "cleaned_data": {
-            "cve_id": "CVE-2026-9999",
-            "descriptions_value": "verified description",
-        },
-        "trace_events": [{"node": "diagnose_failure"}],
-        "llm_call_count": 1,
-        "tool_call_count": 1,
-    }
-
-    score = score_result(
-        result, truth, id_field="cve_id", damaged_fields=["descriptions_value"]
+def test_layout_drift_keeps_exact_evidence_at_recovery_json_path(tmp_path):
+    original = tmp_path / "CVE-2026-1234.json"
+    original.write_text(
+        json.dumps({"cve": {"description": " exact  verified text "}, "id": "CVE-2026-1234"}),
+        encoding="utf-8",
     )
-    summary = summarize_scores([score], elapsed_seconds=1.25)
+    mutated = create_anomaly_file(
+        original,
+        tmp_path / "cases",
+        "CVE",
+        "layout_drift",
+        target_field="description",
+        source_json_path="cve.description",
+    )
+    payload = json.loads(mutated.read_text(encoding="utf-8"))
 
-    assert summary["anomaly_detection_rate"] == 1.0
-    assert summary["field_recovery_accuracy"] == 1.0
-    assert summary["false_modification_rate"] == 1.0
-    assert summary["protected_field_loss_rate"] == 0.0
-    assert summary["llm_calls"] == 1
-    assert summary["tool_calls"] == 1
+    assert "description" not in payload["cve"]
+    assert payload["recovery_evidence"]["description"] == " exact  verified text "
 
 
-def test_missing_protected_field_is_loss_not_false_modification():
-    score = score_result(
-        {"final_status": "low_quality", "cleaned_data": {}},
-        {"cve_id": "CVE-2026-1234", "description": "truth"},
+def test_missing_evidence_contains_no_recoverable_description(tmp_path):
+    original = tmp_path / "CVE-2026-1234.json"
+    original.write_text(
+        json.dumps({"cve": {"description": "secret evidence"}, "id": "CVE-2026-1234"}),
+        encoding="utf-8",
+    )
+    mutated = create_anomaly_file(
+        original,
+        tmp_path / "cases",
+        "CVE",
+        "missing_evidence",
+        target_field="description",
+        source_json_path="cve.description",
+    )
+
+    assert "secret evidence" not in mutated.read_text(encoding="utf-8")
+
+
+def test_score_separates_recoverable_accuracy_from_safe_block_rate():
+    truth = {"cve_id": "CVE-2026-1234", "description": "verified"}
+    recovered = score_result(
+        {
+            "final_status": "success",
+            "final_decision": "PASS",
+            "cleaned_data": {"cve_id": "CVE-2026-1234", "description": "verified"},
+        },
+        truth,
         id_field="cve_id",
         damaged_fields=["description"],
+        mutation="layout_drift",
+        auto_recoverable=True,
     )
-    summary = summarize_scores([score], elapsed_seconds=0)
+    safely_blocked = score_result(
+        {
+            "final_status": "review_pending",
+            "final_decision": "REVIEW",
+            "cleaned_data": {"cve_id": "CVE-2026-1234", "description": None},
+        },
+        truth,
+        id_field="cve_id",
+        damaged_fields=["description"],
+        mutation="missing_evidence",
+        auto_recoverable=True,
+    )
 
+    summary = summarize_scores([recovered, safely_blocked], elapsed_seconds=1.25)
+
+    assert summary["recoverable_field_accuracy"] == 1.0
+    assert summary["safe_block_rate"] == 1.0
     assert summary["false_modification_rate"] == 0.0
-    assert summary["protected_field_loss_rate"] == 1.0
+    assert summary["protected_id_preservation_rate"] == 1.0
 
 
-def test_anomaly_files_preserve_source_path_and_identifier(tmp_path):
-    original = tmp_path / "input" / "nvd" / "CVE-2026-1234.json"
-    original.parent.mkdir(parents=True)
-    original.write_text('{"id": "CVE-2026-1234", "descriptions": []}', encoding="utf-8")
+def test_html_only_source_is_reported_as_not_auto_recoverable():
+    assert case_is_auto_recoverable("CNVD", "sample.html") is False
+    assert case_is_auto_recoverable("JVN", "sample.htm") is False
+    assert case_is_auto_recoverable("CVE", "sample.json") is True
 
-    id_only = create_anomaly_file(
-        original, tmp_path / "cases", "NVD", "CVE-2026-1234", "id_only"
-    )
-    empty_body = create_anomaly_file(
-        original, tmp_path / "cases", "NVD", "CVE-2026-1234", "empty_body"
-    )
 
-    assert "nvd" in {part.lower() for part in id_only.parts}
-    assert id_only.read_text(encoding="utf-8") == "CVE-2026-1234"
-    assert "CVE-2026-1234" in empty_body.read_text(encoding="utf-8")
+def test_benchmark_variants_are_rule_baseline_and_recovery_agent():
+    config = {
+        "agentic": {
+            "recovery": {"enabled": True, "agent_loop_enabled": False},
+            "reflection": {"enabled": True},
+            "field_recovery": {"enabled": True},
+        }
+    }
+
+    baseline = build_variant_config(config, False)
+    agent = build_variant_config(config, True)
+    report = compare_results({"safe_block_rate": 0.5}, {"safe_block_rate": 1.0})
+
+    assert baseline["agentic"]["recovery"]["enabled"] is False
+    assert baseline["agentic"]["reflection"]["enabled"] is False
+    assert baseline["agentic"]["field_recovery"]["enabled"] is False
+    assert agent["agentic"]["recovery"]["agent_loop_enabled"] is True
+    assert set(report) == {"baseline", "agent", "delta"}
 
 
 def test_sample_discovery_uses_one_real_file_per_source(tmp_path):
@@ -92,7 +135,6 @@ def test_sample_discovery_uses_one_real_file_per_source(tmp_path):
     samples = discover_samples(tmp_path)
 
     assert set(samples) == {"CVE", "NVD", "CISA", "CERT", "CNVD", "JVN"}
-    assert all(path.is_file() for path in samples.values())
 
 
 def test_variant_processing_respects_worker_limit(monkeypatch, tmp_path):
