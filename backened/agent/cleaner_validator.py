@@ -224,12 +224,26 @@ class CleanerValidatorAgent:
         config = self.config_loader.get_source_config(source)
         errors = []
         warnings = []
+        field_issues = []
+        evidence_gaps = []
         
         # 1. 必填字段检查
         required_fields = self.config_loader.get_required_fields(source)
         for field_name in required_fields:
             if not data.get(field_name):
-                errors.append(f"Missing required field: {field_name}")
+                message = f"Missing required field: {field_name}"
+                errors.append(message)
+                field_issues.append({
+                    'field': field_name,
+                    'code': 'missing_required',
+                    'severity': 'error',
+                    'message': message,
+                    'evidence_required': True,
+                })
+                evidence_gaps.append({
+                    'field': field_name,
+                    'reason': 'required_field_missing',
+                })
         
         # 2. 字段类型检查
         for field in config.get('fields', []):
@@ -237,9 +251,15 @@ class CleanerValidatorAgent:
             if data.get(field_name):
                 expected_type = field.get('type', 'string')
                 if not self.check_type(data[field_name], expected_type):
-                    warnings.append(
-                        f"Type mismatch for {field_name}: expected {expected_type}"
-                    )
+                    message = f"Type mismatch for {field_name}: expected {expected_type}"
+                    warnings.append(message)
+                    field_issues.append({
+                        'field': field_name,
+                        'code': 'type_mismatch',
+                        'severity': 'warning',
+                        'message': message,
+                        'evidence_required': False,
+                    })
         
         # 3. 字段长度检查
         for field in config.get('fields', []):
@@ -247,14 +267,22 @@ class CleanerValidatorAgent:
             max_length = field.get('max_length')
             if max_length and data.get(field_name):
                 if isinstance(data[field_name], str) and len(data[field_name]) > max_length:
-                    warnings.append(
-                        f"Field {field_name} exceeds max length {max_length}"
-                    )
+                    message = f"Field {field_name} exceeds max length {max_length}"
+                    warnings.append(message)
+                    field_issues.append({
+                        'field': field_name,
+                        'code': 'max_length_exceeded',
+                        'severity': 'warning',
+                        'message': message,
+                        'evidence_required': False,
+                    })
         
         return {
             'errors': errors,
             'warnings': warnings,
-            'is_valid': len(errors) == 0
+            'is_valid': len(errors) == 0,
+            'field_issues': field_issues,
+            'evidence_gaps': evidence_gaps,
         }
     
     def check_type(self, value: Any, expected_type: str) -> bool:
