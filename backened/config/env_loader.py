@@ -27,34 +27,25 @@ class EnvConfigLoader:
         加载 .env 文件
         
         优先级：
-        1. 指定的 env_file
-        2. config/database.env
+        1. 指定的 env_file（若提供）
+        2. 已设置的系统环境变量
         3. config/.env
-        4. 项目根目录 .env
+        4. config/database.env
+        5. 项目根目录 .env
         """
         if env_file and Path(env_file).exists():
             load_dotenv(env_file, override=True)
             return
         
-        # 尝试加载 config/database.env
         config_dir = Path(__file__).parent
-        database_env = config_dir / 'database.env'
-        if database_env.exists():
-            load_dotenv(database_env, override=True)
-            return
-        
-        # 尝试加载 config/.env
-        local_env = config_dir / '.env'
-        if local_env.exists():
-            load_dotenv(local_env, override=True)
-            return
-        
-        # 尝试加载项目根目录 .env
         root_dir = config_dir.parent
-        root_env = root_dir / '.env'
-        if root_env.exists():
-            load_dotenv(root_env, override=True)
-            return
+        for candidate in (
+            config_dir / '.env',
+            config_dir / 'database.env',
+            root_dir / '.env',
+        ):
+            if candidate.exists():
+                load_dotenv(candidate, override=False)
     
     def get(self, key: str, default: Any = None, cast_type: type = str) -> Any:
         """
@@ -75,11 +66,11 @@ class EnvConfigLoader:
         
         # 类型转换
         try:
-            if cast_type == bool:
+            if cast_type is bool:
                 return value.lower() in ('true', '1', 'yes', 'on')
-            elif cast_type == int:
+            elif cast_type is int:
                 return int(value)
-            elif cast_type == float:
+            elif cast_type is float:
                 return float(value)
             else:
                 return value

@@ -4,8 +4,6 @@ CleanAgent 环境可用性诊断脚本
 无需项目其他模块，独立可执行。
 """
 import os
-import sys
-import time
 from pathlib import Path
 
 # ── 颜色输出（Windows 兼容）──────────────────────────────────────────────────
@@ -21,13 +19,13 @@ except ImportError:
 # ── 加载 .env ─────────────────────────────────────────────────────────────────
 def _load_env():
     base = Path(__file__).parent / "config"
-    for name in ("database.env", ".env"):
+    loaded = []
+    for name in (".env", "database.env"):
         p = base / name
         if p.exists():
             try:
                 from dotenv import load_dotenv
                 load_dotenv(p, override=False)
-                return str(p)
             except ImportError:
                 # 手动解析
                 with open(p, encoding="utf-8") as f:
@@ -36,8 +34,8 @@ def _load_env():
                         if line and not line.startswith("#") and "=" in line:
                             k, _, v = line.partition("=")
                             os.environ.setdefault(k.strip(), v.strip())
-                return str(p)
-    return None
+            loaded.append(str(p))
+    return ", ".join(loaded) or None
 
 # ── 结果收集 ──────────────────────────────────────────────────────────────────
 results = []   # (label, status, detail)
@@ -56,7 +54,6 @@ def _record(label, status, detail=""):
 def check_env_file():
     path = _load_env()
     if path:
-        count = sum(1 for k in os.environ if not k.startswith("_"))
         _record("环境变量文件", "ok", f"{path} 已加载")
     else:
         _record("环境变量文件", "warn", "未找到 config/database.env 或 config/.env，将使用系统环境变量")
@@ -79,16 +76,15 @@ def check_mysql():
         safe = "***"
 
     try:
-        import sqlalchemy
+        import sqlalchemy as sa
     except ImportError:
         missing_pkgs.append("sqlalchemy pymysql")
         _record("MySQL", "err", "缺少 sqlalchemy，运行: pip install sqlalchemy pymysql")
         return
 
     try:
-        import sqlalchemy as sa
         engine = sa.create_engine(db_uri, connect_args={"connect_timeout": 5})
-        with engine.connect() as conn:
+        with engine.connect():
             tables = sa.inspect(engine).get_table_names()
         _record("MySQL", "ok", f"连接成功 | 主机: {safe} | 表数量: {len(tables)}")
     except Exception as e:
@@ -272,7 +268,8 @@ def check_serpapi():
 # 9. NVD API（美国国家漏洞数据库）
 # ─────────────────────────────────────────────────────────────────────────────
 def check_nvd():
-    import urllib.request, json as _json
+    import json as _json
+    import urllib.request
     nvd_key = os.getenv("NVD_API_KEY", "")
     url = "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2021-44228"
     headers = {"User-Agent": "CleanAgent-Checker/1.0"}
@@ -282,9 +279,8 @@ def check_nvd():
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=8) as r:
-            data = _json.loads(r.read())
-        total = data.get("totalResults", 0)
-        key_info = f"（已配置 API Key，速率更高）" if nvd_key else "（无 Key，每 30 秒 5 次）"
+            _json.loads(r.read())
+        key_info = "（已配置 API Key，速率更高）" if nvd_key else "（无 Key，每 30 秒 5 次）"
         _record("NVD API", "ok", f"公开接口可达，CVE-2021-44228 存在 {key_info}")
     except Exception as e:
         _record("NVD API", "err", f"网络不可达: {e}")
@@ -293,7 +289,8 @@ def check_nvd():
 # 10. FastAPI 后端
 # ─────────────────────────────────────────────────────────────────────────────
 def check_fastapi():
-    import urllib.request, json as _json
+    import json as _json
+    import urllib.request
     url = "http://127.0.0.1:8000/api/v1/health"
     try:
         with urllib.request.urlopen(url, timeout=3) as r:
