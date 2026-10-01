@@ -4,7 +4,7 @@ Database Manager for Multi-Agent System
 """
 import logging
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Float, Boolean, BigInteger
 try:
     from sqlalchemy.orm import declarative_base
@@ -13,9 +13,11 @@ except ImportError:
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 
+from .reliability import ReliabilityStore, ReviewTask, VectorIndexOutbox
+
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
+ID_TYPE = BigInteger().with_variant(Integer, "sqlite")
 
 
 # 类型映射
@@ -52,6 +54,7 @@ class DatabaseManager:
         self.engine = create_engine(db_uri, echo=False, pool_pre_ping=True, connect_args=connect_args)
         self.Session = sessionmaker(bind=self.engine)
         self.config_loader = config_loader
+        self.Base = declarative_base()
         
         # 动态生成所有表模型（主表和子表）
         self.models = {}
@@ -72,7 +75,9 @@ class DatabaseManager:
         
         # 创建所有表
         try:
-            Base.metadata.create_all(self.engine)
+            self.Base.metadata.create_all(self.engine)
+            self.reliability = ReliabilityStore(self.Session)
+            self.reliability.create_tables(self.engine)
             logger.debug("Database tables created/verified")
         except Exception as e:
             logger.error(f"Failed to create tables: {e}")
@@ -97,7 +102,7 @@ class DatabaseManager:
         attrs = {
             '__tablename__': table_name,
             '__table_args__': {'extend_existing': True},
-            'id': Column(BigInteger, primary_key=True, autoincrement=True),
+            'id': Column(ID_TYPE, primary_key=True, autoincrement=True),
             'status': Column(Integer, default=0, comment='状态'),
             'is_deleted': Column(Boolean, default=False, comment='是否删除'),
             'create_time': Column(DateTime, default=datetime.now, comment='创建时间'),
@@ -131,7 +136,7 @@ class DatabaseManager:
         
         # 动态创建类
         model_name = f"{source.upper()}Model"
-        model_class = type(model_name, (Base,), attrs)
+        model_class = type(model_name, (self.Base,), attrs)
         
         return model_class
     
@@ -158,7 +163,7 @@ class DatabaseManager:
         attrs = {
             '__tablename__': table_name,
             '__table_args__': {'extend_existing': True},
-            'id': Column(BigInteger, primary_key=True, autoincrement=True),
+            'id': Column(ID_TYPE, primary_key=True, autoincrement=True),
             'create_time': Column(DateTime, default=datetime.now, comment='创建时间'),
         }
         
@@ -204,7 +209,7 @@ class DatabaseManager:
         
         # 动态创建类
         model_name = f"{source.upper()}SubtableModel"
-        model_class = type(model_name, (Base,), attrs)
+        model_class = type(model_name, (self.Base,), attrs)
         
         return model_class
     
@@ -273,6 +278,112 @@ class DatabaseManager:
             return False
         finally:
             session.close()
+
+    def _upsert_in_session(self, session, data: Dict[str, Any], source: str) -> str:
+        data = self._apply_field_mapping(dict(data))
+        model_class = self.models.get(source.lower())
+        if not model_class:
+            raise ValueError(f"No model found for source: {source}")
+
+        config = self.config_loader.get_source_config(source)
+        id_field = config.get('id_field')
+        if not id_field or id_field not in data:
+            raise ValueError(f"ID field '{id_field}' not found in data")
+
+        validated = self._validate_record_data(data, model_class)
+        if validated is None:
+            raise ValueError("Record validation failed")
+
+        vuln_id = str(validated[id_field])
+        existing = session.query(model_class).filter(
+            getattr(model_class, id_field) == validated[id_field]
+        ).first()
+        if existing:
+            for key, value in validated.items():
+                setattr(existing, key, value)
+            existing.modify_time = datetime.now()
+        else:
+            session.add(model_class(**validated))
+        return vuln_id
+
+    def _upsert_subtable_in_session(self, session, records, source: str) -> None:
+        if not records:
+            return
+        model_class = self.subtable_models.get(source.lower())
+        if not model_class:
+            raise ValueError(f"No subtable model found for source: {source}")
+        foreign_key = self.config_loader.get_subtable_config(source).get(
+            'foreign_key', 'cve_id'
+        )
+        for data in records:
+            if foreign_key not in data:
+                raise ValueError(f"Missing foreign key '{foreign_key}' in subtable record")
+            validated = self._validate_record_data(dict(data), model_class)
+            if validated is None:
+                raise ValueError("Subtable record validation failed")
+            session.add(model_class(**validated))
+
+    def _enqueue_outbox_in_session(self, session, source: str, vuln_id: str) -> None:
+        row = session.query(VectorIndexOutbox).filter_by(
+            source=source.lower(),
+            vuln_id=vuln_id,
+        ).first()
+        if row is None:
+            session.add(VectorIndexOutbox(source=source.lower(), vuln_id=vuln_id))
+            return
+        row.status = 'pending'
+        row.attempt_count = 0
+        row.next_retry_at = None
+        row.locked_at = None
+        row.last_error = None
+
+    def upsert_with_outbox(
+        self,
+        data: Dict[str, Any],
+        source: str,
+        subtable_records: Optional[List[Dict[str, Any]]] = None,
+        review_task_id: Optional[str] = None,
+    ) -> bool:
+        """Atomically store source data, subtable rows, vector job, and review result."""
+        session = self.Session()
+        try:
+            vuln_id = self._upsert_in_session(session, data, source)
+            self._upsert_subtable_in_session(session, subtable_records or [], source)
+            self._enqueue_outbox_in_session(session, source, vuln_id)
+            if review_task_id:
+                review = session.query(ReviewTask).filter_by(
+                    task_id=review_task_id,
+                    status='processing',
+                ).first()
+                if review is None:
+                    raise ValueError(f"Review task is not claimed: {review_task_id}")
+                review.status = 'approved'
+                review.reviewed_at = datetime.utcnow()
+                review.locked_at = None
+            session.commit()
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Atomic upsert failed for {source}: {e}")
+            return False
+        finally:
+            session.close()
+
+    def get_record(self, source: str, vuln_id: str) -> Optional[Dict[str, Any]]:
+        model_class = self.models.get(source.lower())
+        if not model_class:
+            return None
+        id_field = self.config_loader.get_source_config(source).get('id_field')
+        with self.Session() as session:
+            row = session.query(model_class).filter(
+                getattr(model_class, id_field) == vuln_id
+            ).first()
+            if row is None:
+                return None
+            return {
+                column.name: getattr(row, column.name)
+                for column in model_class.__table__.columns
+            }
     
     def bulk_upsert(self, records: List[Dict[str, Any]], source: str, 
                     batch_size: int = 100) -> Dict[str, int]:
