@@ -1,0 +1,25 @@
+# LangGraph Multi-Agent System Requirements
+
+# Core dependencies
+langgraph>=0.2.0
+langchain-openai>=0.1.0
+sqlalchemy>=2.0.0
+pymysql>=1.1.0
+cryptography>=41.0.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+fastapi>=0.115.0
+uvicorn>=0.30.0
+
+# Phase 2: RAG + Tools + Chat + Skills
+pymilvus>=2.3.0          # Milvus 向量数据库客户端
+tavily-python>=0.3.0     # Tavily 搜索工具
+google-search-results>=2.4.2  # SerpAPI Google 搜索
+websockets>=12.0         # WebSocket 对话支持
+
+# Optional dependencies
+# pytest>=7.0.0  # For testing
+# ruff>=0.1.0    # For linting
+# mypy>=1.0.0    # For type checking

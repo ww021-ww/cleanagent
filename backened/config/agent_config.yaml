@@ -1,0 +1,167 @@
+
+llm_config:
+  # 模型名称（可被环境变量 DEFAULT_LLM_MODEL 覆盖）
+  model: tq-gpt-Qwen3-30B-Instruct
+  # 温度参数（可被环境变量 LLM_TEMPERATURE 覆盖）
+  temperature: 0
+
+# -------------------- 数据库配置 --------------------
+# ⚠️ 注意：数据库URI包含密码，请在 .env 文件中配置 DB_URI
+# 这里的值仅作为占位符，实际运行时会从环境变量读取
+db_uri: ${DB_URI}
+
+# -------------------- 智能体配置 --------------------
+agents:
+  # 提取智能体
+  extractor:
+    # 是否启用
+    enabled: true
+    # 提取超时时间（秒）
+    # 可被环境变量 EXTRACTOR_TIMEOUT 覆盖
+    timeout: 30
+  
+  # 清洗验证智能体
+  cleaner_validator:
+    # 是否启用
+    enabled: true
+    # 质量分阈值（0-1，低于此值的数据会被标记为低质量）
+    # 可被环境变量 QUALITY_THRESHOLD 覆盖
+    quality_threshold: 0.5
+    # 是否启用LLM辅助验证（会增加处理时间）
+    enable_llm_validation: false
+  
+  # 增强智能体（可选，会显著增加处理时间）
+  enrichment:
+    # 是否启用增强功能
+    # 可被环境变量 ENABLE_ENRICHMENT 覆盖
+    enabled: false  # ✅ 已关闭（默认就是关闭的）
+    # 是否提取CWE信息
+    extract_cwe: true
+    # 是否生成摘要
+    generate_summary: false
+    # 是否查找相关漏洞
+    find_related: false
+  
+  # 存储智能体
+  storage:
+    # 是否启用
+    enabled: true
+    # 批量插入大小
+    # 可被环境变量 STORAGE_BATCH_SIZE 覆盖
+    batch_size: 50
+    # 存储超时时间（秒）
+    # 可被环境变量 STORAGE_TIMEOUT 覆盖
+    timeout: 60
+    # 跳过HTML文件（如果同一漏洞已由JSON文件处理过）
+    # true=开启跳过，false=关闭跳过（强制重新处理所有HTML）
+    skip_html_if_json_processed: false
+
+# -------------------- 处理配置 --------------------
+processing:
+  # 最大并发工作线程数（建议不超过CPU核心数）
+  # 可被环境变量 MAX_WORKERS 覆盖
+  max_workers: 8  # 从4提高到8，提升2倍速度
+  # 任务超时时间（秒）
+  # 可被环境变量 TASK_TIMEOUT 覆盖
+  timeout: 3600
+  # 是否启用断点续传
+  # 可被环境变量 ENABLE_CHECKPOINT 覆盖
+  enable_checkpoint: true
+  # 检查点文件路径
+  # 可被环境变量 CHECKPOINT_FILE 覆盖
+  checkpoint_file: progress.json
+
+# -------------------- 日志配置 --------------------
+logging:
+  # 日志级别（DEBUG, INFO, WARNING, ERROR, CRITICAL）
+  # 可被环境变量 LOG_LEVEL 覆盖
+  level: INFO
+  # 日志文件路径
+  # 可被环境变量 LOG_FILE 覆盖
+  file: logs/multiagent.log
+  # 日志格式（不建议修改）
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  # 是否输出到控制台
+  # 可被环境变量 LOG_CONSOLE 覆盖
+  console: true
+
+# -------------------- 性能配置 --------------------
+performance:
+  # 消息队列超时时间（秒）
+  # 可被环境变量 QUEUE_TIMEOUT 覆盖
+  queue_timeout: 30
+  # 批处理间隔（秒）
+  # 可被环境变量 BATCH_INTERVAL 覆盖
+  batch_interval: 5
+  # 最大重试次数
+  # 可被环境变量 MAX_RETRIES 覆盖
+  max_retries: 3
+
+# -------------------- 智能增强配置 --------------------
+# 各增强模块均可独立启停，不影响主干流程
+agentic:
+  # 反思重试：提取质量不达标时自动升级策略重试
+  reflection:
+    enabled: true
+    max_retries: 2
+    strategy_escalation:
+      - rule
+      - hybrid
+      - llm_full
+
+  # LLM 字段修复：清洗后仍有缺失必填字段时用 LLM 补全
+  field_recovery:
+    enabled: true
+    max_fields_per_call: 5
+    only_required: true
+
+  # 双层记忆：批次内去重 + 跨批次策略经验持久化
+  memory:
+    enabled: true
+    failure_threshold: 3
+    persist_file: logs/memory.json
+    incremental_aggregate: true
+    use_bloom_filter: false
+
+  # 智能合并：upsert 前保护数据库中已有的有效字段
+  smart_merge:
+    enabled: true
+
+  # 任务规划：批处理前预分析文件，按复杂度分配策略
+  planner:
+    enabled: true
+    file_size_threshold: 102400    # >100KB 使用 hybrid 策略
+    skip_known_ids: true
+
+  # RAG 检索增强：向量化已处理漏洞，为 LLM 提取提供 few-shot 参考
+  rag:
+    enabled: true
+    host: localhost                 # Milvus 主机（WSL 端口转发到 Windows）
+    port: 19530
+    collection_name: vuln_knowledge_v2
+    top_k: 5
+
+  # 工具调用：自动补全缺失字段（NVD/Tavily/SerpAPI/翻译）
+  tools:
+    enabled: true
+    nvd_api_key: ""                # NVD API Key（可选，有 Key 速率更高）
+    tavily_api_key: ${TAVILY_API_KEY}
+    max_calls_per_file: 3
+
+  # 对话智能体：自然语言查询接口
+  chat:
+    enabled: true
+    model: ${DEFAULT_LLM_MODEL}    # 通过 OpenAI 兼容接口调用
+    max_results: 10
+    enable_external_fallback: true
+    prefer_nvd_for_cve: true
+    enable_tavily_fallback: true
+    max_external_results: 3
+    show_external_sources: true
+
+  # 技能注册表：可插拔的提取/清洗/验证技能
+  skills:
+    enabled: true
+    skill_dirs:
+      - skills/
+

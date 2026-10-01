@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>知识库 RAG 系统</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+    header {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3);
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header span { font-size: .85rem; opacity: .6; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.07);
+      overflow: hidden;
+    }
+    .card-header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 14px 20px;
+      font-size: .95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-body { padding: 20px; }
+
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid #e8eaf0; margin-bottom: 16px; }
+    .tab {
+      padding: 8px 18px;
+      cursor: pointer;
+      font-size: .88rem;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .2s, border-color .2s;
+      color: #666;
+    }
+    .tab.active { color: #5b6af0; border-bottom-color: #5b6af0; font-weight: 600; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    label { font-size: .82rem; color: #555; display: block; margin-bottom: 4px; margin-top: 12px; }
+    input[type=text], textarea, select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #dde1f0;
+      border-radius: 8px;
+      font-size: .9rem;
+      transition: border-color .2s;
+      outline: none;
+    }
+    input[type=text]:focus, textarea:focus { border-color: #5b6af0; }
+    textarea { resize: vertical; min-height: 90px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: #5b6af0; color: #fff; }
+    .btn-danger  { background: #ef4444; color: #fff; }
+    .btn-ghost   { background: #f0f2f5; color: #444; }
+    .btn-sm { padding: 5px 12px; font-size: .8rem; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+
+    /* file upload drop zone */
+    .drop-zone {
+      border: 2px dashed #c5cae9;
+      border-radius: 10px;
+      padding: 28px;
+      text-align: center;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+      color: #888;
+      font-size: .9rem;
+      margin-top: 10px;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { background: #f0f1ff; border-color: #5b6af0; }
+    .drop-zone input { display: none; }
+    .drop-zone .filename { margin-top: 8px; font-size: .82rem; color: #5b6af0; font-weight: 600; }
+
+    /* knowledge list */
+    .doc-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .doc-item {
+      background: #f8f9ff;
+      border: 1px solid #e8eaf0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .doc-item-info { flex: 1; min-width: 0; }
+    .doc-item-title { font-weight: 600; font-size: .9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .doc-item-meta { font-size: .75rem; color: #999; margin-top: 2px; }
+    .doc-item-preview { font-size: .8rem; color: #555; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .doc-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+
+    .pagination { display: flex; gap: 6px; align-items: center; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+    .page-btn { padding: 5px 12px; border: 1px solid #dde1f0; border-radius: 6px; background: #fff; cursor: pointer; font-size: .82rem; }
+    .page-btn.active { background: #5b6af0; color: #fff; border-color: #5b6af0; }
+    .page-info { font-size: .82rem; color: #888; }
+
+    /* search results */
+    .result-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .result-item {
+      background: #f8f9ff;
+      border-left: 3px solid #5b6af0;
+      border-radius: 0 10px 10px 0;
+      padding: 12px 14px;
+    }
+    .result-item-title { font-weight: 600; font-size: .9rem; }
+    .result-item-score { font-size: .75rem; color: #888; margin-top: 2px; }
+    .result-item-content { font-size: .82rem; color: #444; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* streaming answer */
+    .answer-box {
+      background: #f8f9ff;
+      border: 1px solid #e8eaf0;
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 12px;
+      min-height: 80px;
+      font-size: .9rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .answer-box .cursor { display: inline-block; width: 2px; height: 1em; background: #5b6af0; animation: blink 1s step-end infinite; vertical-align: text-bottom; margin-left: 1px; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .sources-box { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .source-tag {
+      background: #eef0ff;
+      color: #5b6af0;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: .76rem;
+      font-weight: 600;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      color: #fff;
+      font-size: .87rem;
+      font-weight: 600;
+      z-index: 9999;
+      transition: opacity .4s;
+      pointer-events: none;
+    }
+    .toast.success { background: #22c55e; }
+    .toast.error   { background: #ef4444; }
+
+    /* edit modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      width: 520px;
+      max-width: 95vw;
+      padding: 28px;
+      box-shadow: 0 8px 40px rgba(0,0,0,.25);
+    }
+    .modal h2 { font-size: 1rem; margin-bottom: 16px; }
+
+    .empty { text-align: center; color: #bbb; padding: 28px; font-size: .88rem; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+  <h1>知识库 RAG 系统</h1>
+  <span>Knowledge Base · Hybrid Search · Streaming QA</span>
+</header>
+
+<div class="layout">
+
+  <!-- 左栏：知识库管理 -->
+  <div class="card">
+    <div class="card-header">📚 知识库管理</div>
+    <div class="card-body">
+      <div class="tabs">
+        <div class="tab active" data-tab="add">新增</div>
+        <div class="tab" data-tab="list">列表</div>
+      </div>
+
+      <!-- 新增 -->
+      <div class="tab-panel active" id="tab-add">
+        <div class="tabs" style="margin-bottom:12px;">
+          <div class="tab active" data-stab="text">文本输入</div>
+          <div class="tab" data-stab="file">上传 txt</div>
+        </div>
+
+        <!-- 文本输入 -->
+        <div class="tab-panel active" id="stab-text">
+          <label>文档标题</label>
+          <input type="text" id="add-title" placeholder="例：朱自清《春》" />
+          <label>文档内容</label>
+          <textarea id="add-content" rows="6" placeholder="粘贴或输入文章全文..."></textarea>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="addDoc()">➕ 添加到知识库</button>
+          </div>
+        </div>
+
+        <!-- 文件上传 -->
+        <div class="tab-panel" id="stab-file">
+          <label>自定义标题（可选，默认使用文件名）</label>
+          <input type="text" id="upload-title" placeholder="例：鲁迅《故乡》" />
+          <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <input type="file" id="file-input" accept=".txt" onchange="onFileSelect(this)" />
+            <svg width="32" height="32" fill="none" stroke="#aaa" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            <div>点击或拖拽 .txt 文件到此处</div>
+            <div class="filename" id="file-name-display"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="uploadFile()">📤 上传文件</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 列表 -->
+      <div class="tab-panel" id="tab-list">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span id="list-total" style="font-size:.82rem;color:#888;">共 0 条</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadList(currentPage)">🔄 刷新</button>
+        </div>
+        <div class="doc-list" id="doc-list"><div class="empty">暂无文档</div></div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右栏：搜索 + 问答 -->
+  <div class="card">
+    <div class="card-header">🔍 检索 & 问答</div>
+    <div class="card-body">
+      <div class="tabs">
+        <div class="tab active" data-rtab="search">相关性检索</div>
+        <div class="tab" data-rtab="ask">流式问答</div>
+      </div>
+
+      <!-- 相关性检索 -->
+      <div class="tab-panel active" id="rtab-search">
+        <label>检索内容</label>
+        <input type="text" id="search-query" placeholder="例：春天 / 少年闰土 / 小孩子" onkeydown="if(event.key==='Enter') doSearch()" />
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="doSearch()">🔎 检索</button>
+          <select id="search-topk" style="width:auto;padding:9px 12px">
+            <option value="1" selected>Top 1</option>
+            <option value="3">Top 3</option>
+            <option value="5">Top 5</option>
+            <option value="10">Top 10</option>
+          </select>
+        </div>
+        <div class="result-list" id="search-results"></div>
+      </div>
+
+      <!-- 流式问答 -->
+      <div class="tab-panel" id="rtab-ask">
+        <label>提问内容</label>
+        <input type="text" id="ask-query" placeholder="例：春天有哪些景色？故乡写了什么？" onkeydown="if(event.key==='Enter') doAsk()" />
+        <div class="btn-row">
+          <button class="btn btn-primary" id="ask-btn" onclick="doAsk()">💬 提问</button>
+          <select id="ask-topk" style="width:auto;padding:9px 12px">
+            <option value="1" selected>Top 1</option>
+            <option value="2">Top 2</option>
+            <option value="3">Top 3</option>
+            <option value="5">Top 5</option>
+          </select>
+        </div>
+        <div id="sources-area" style="display:none;">
+          <label style="margin-top:12px;">检索来源</label>
+          <div class="sources-box" id="sources-list"></div>
+        </div>
+        <label style="margin-top:12px;">AI 回答</label>
+        <div class="answer-box" id="answer-box"><span style="color:#bbb;">等待提问...</span></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h2>✏️ 编辑知识文档</h2>
+    <input type="hidden" id="edit-id" />
+    <label>文档标题</label>
+    <input type="text" id="edit-title" />
+    <label>文档内容</label>
+    <textarea id="edit-content" rows="7"></textarea>
+    <div class="btn-row" style="margin-top:18px;">
+      <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+      <button class="btn btn-ghost" onclick="closeEditModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" style="opacity:0;"></div>
+
+<script>
+  const API = '';   // same origin
+  let currentPage = 1;
+  const PAGE_SIZE = 8;
+  let selectedFile = null;
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type}`;
+    el.style.opacity = '1';
+    setTimeout(() => el.style.opacity = '0', 2500);
+  }
+
+  // ── Tabs ─────────────────────────────────────────────────────────────────
+  document.querySelectorAll('[data-tab]').forEach(t => t.addEventListener('click', function () {
+    const group = this.closest('.tabs');
+    group.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    this.classList.add('active');
+    const panel = document.getElementById(`tab-${this.dataset.tab}`);
+    panel.closest('.card-body').querySelectorAll('.tab-panel').forEach(p => {
+      if (['tab-add','tab-list'].includes(p.id)) p.classList.remove('active');
+    });
+    panel.classList.add('active');
+    if (this.dataset.tab === 'list') loadList(1);
+  }));
+
+  document.querySelectorAll('[data-stab]').forEach(t => t.addEventListener('click', function () {
+    const group = this.closest('.tabs');
+    group.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    this.classList.add('active');
+    const panel = document.getElementById(`stab-${this.dataset.stab}`);
+    document.querySelectorAll('#stab-text, #stab-file').forEach(p => p.classList.remove('active'));
+    panel.classList.add('active');
+  }));
+
+  document.querySelectorAll('[data-rtab]').forEach(t => t.addEventListener('click', function () {
+    const group = this.closest('.tabs');
+    group.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    this.classList.add('active');
+    const panel = document.getElementById(`rtab-${this.dataset.rtab}`);
+    document.querySelectorAll('#rtab-search, #rtab-ask').forEach(p => p.classList.remove('active'));
+    panel.classList.add('active');
+  }));
+
+  // ── 文件拖拽 ──────────────────────────────────────────────────────────────
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.name.endsWith('.txt')) { selectedFile = f; document.getElementById('file-name-display').textContent = f.name; }
+    else toast('仅支持 .txt 文件', 'error');
+  });
+
+  function onFileSelect(input) {
+    selectedFile = input.files[0] || null;
+    document.getElementById('file-name-display').textContent = selectedFile ? selectedFile.name : '';
+  }
+
+  // ── 新增（文本） ────────────────────────────────────────────────────────
+  async function addDoc() {
+    const title = document.getElementById('add-title').value.trim();
+    const content = document.getElementById('add-content').value.trim();
+    if (!title || !content) { toast('标题和内容不能为空', 'error'); return; }
+    try {
+      const res = await fetch(`${API}/knowledge/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, content})
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        toast('添加成功！');
+        document.getElementById('add-title').value = '';
+        document.getElementById('add-content').value = '';
+      } else toast(data.detail || '添加失败', 'error');
+    } catch (e) { toast('网络错误', 'error'); }
+  }
+
+  // ── 上传文件 ───────────────────────────────────────────────────────────
+  async function uploadFile() {
+    if (!selectedFile) { toast('请先选择 .txt 文件', 'error'); return; }
+    const title = document.getElementById('upload-title').value.trim();
+    const form = new FormData();
+    form.append('file', selectedFile);
+    if (title) form.append('title', title);
+    try {
+      const res = await fetch(`${API}/knowledge/upload`, { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.code === 200) {
+        toast('上传成功！');
+        selectedFile = null;
+        document.getElementById('file-name-display').textContent = '';
+        document.getElementById('upload-title').value = '';
+        document.getElementById('file-input').value = '';
+      } else toast(data.detail || '上传失败', 'error');
+    } catch (e) { toast('网络错误', 'error'); }
+  }
+
+  // ── 列表 + 分页 ────────────────────────────────────────────────────────
+  async function loadList(page) {
+    currentPage = page;
+    try {
+      const res = await fetch(`${API}/knowledge/?page=${page}&size=${PAGE_SIZE}`);
+      const data = await res.json();
+      if (data.code !== 200) { toast('获取列表失败', 'error'); return; }
+      const { total, docs } = data.data;
+      document.getElementById('list-total').textContent = `共 ${total} 条`;
+      renderDocs(docs);
+      renderPagination(total, page);
+    } catch (e) { toast('网络错误', 'error'); }
+  }
+
+  function renderDocs(docs) {
+    const el = document.getElementById('doc-list');
+    if (!docs.length) { el.innerHTML = '<div class="empty">暂无文档</div>'; return; }
+    el.innerHTML = docs.map(d => `
+      <div class="doc-item">
+        <div class="doc-item-info">
+          <div class="doc-item-title" title="${esc(d.title)}">${esc(d.title)}</div>
+          <div class="doc-item-meta">${d.source === 'file_upload' ? '📄 ' + esc(d.filename) : '✏️ 直接输入'} · ${d.created_at ? d.created_at.slice(0,10) : ''}</div>
+          <div class="doc-item-preview">${esc(d.content)}</div>
+        </div>
+        <div class="doc-actions">
+          <button class="btn btn-ghost btn-sm" data-id="${d.id}" data-title="${esc(d.title)}" data-content="${esc(d.content)}" onclick="openEditModal(this)">编辑</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteDoc('${d.id}')">删除</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderPagination(total, page) {
+    const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+    const el = document.getElementById('pagination');
+    let html = `<button class="page-btn" onclick="loadList(${page-1})" ${page<=1?'disabled':''}>‹</button>`;
+    for (let i = 1; i <= totalPages; i++) {
+      if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - page) > 1) {
+        if (i === 3 || i === totalPages - 2) html += '<span style="padding:0 4px;color:#bbb">…</span>';
+        continue;
+      }
+      html += `<button class="page-btn ${i===page?'active':''}" onclick="loadList(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn" onclick="loadList(${page+1})" ${page>=totalPages?'disabled':''}>›</button>`;
+    html += `<span class="page-info">${page} / ${totalPages}</span>`;
+    el.innerHTML = html;
+  }
+
+  // ── 删除 ───────────────────────────────────────────────────────────────
+  async function deleteDoc(id) {
+    if (!confirm('确认删除该文档？')) return;
+    try {
+      const res = await fetch(`${API}/knowledge/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.code === 200) { toast('删除成功'); loadList(currentPage); }
+      else toast('删除失败', 'error');
+    } catch (e) { toast('网络错误', 'error'); }
+  }
+
+  // ── 编辑弹窗 ───────────────────────────────────────────────────────────
+  function openEditModal(btn) {
+    document.getElementById('edit-id').value = btn.dataset.id;
+    document.getElementById('edit-title').value = btn.dataset.title;
+    document.getElementById('edit-content').value = btn.dataset.content;
+    document.getElementById('edit-modal').classList.add('open');
+  }
+  function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+  async function saveEdit() {
+    const id = document.getElementById('edit-id').value;
+    const title = document.getElementById('edit-title').value.trim();
+    const content = document.getElementById('edit-content').value.trim();
+    if (!title || !content) { toast('标题和内容不能为空', 'error'); return; }
+    try {
+      const res = await fetch(`${API}/knowledge/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, content})
+      });
+      const data = await res.json();
+      if (data.code === 200) { toast('更新成功'); closeEditModal(); loadList(currentPage); }
+      else toast('更新失败', 'error');
+    } catch (e) { toast('网络错误', 'error'); }
+  }
+
+  // ── 相关性检索 ─────────────────────────────────────────────────────────
+  async function doSearch() {
+    const query = document.getElementById('search-query').value.trim();
+    const top_k = parseInt(document.getElementById('search-topk').value);
+    if (!query) { toast('请输入检索内容', 'error'); return; }
+    document.getElementById('search-results').innerHTML = '<div class="empty">检索中...</div>';
+    try {
+      const res = await fetch(`${API}/knowledge/search`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query, top_k})
+      });
+      const data = await res.json();
+      if (data.code !== 200) { toast(data.detail || '检索失败', 'error'); return; }
+      renderSearchResults(data.data);
+    } catch (e) { toast('网络错误', 'error'); }
+  }
+
+  function renderSearchResults(results) {
+    const el = document.getElementById('search-results');
+    if (!results.length) { el.innerHTML = '<div class="empty">未找到相关文档</div>'; return; }
+    el.innerHTML = results.map((r, i) => `
+      <div class="result-item">
+        <div class="result-item-title">#${i+1} ${esc(r.title || '无标题')}</div>
+        <div class="result-item-score">相关度：${(r.score * 100).toFixed(1)}%</div>
+        <div class="result-item-content">${esc(r.content || '')}</div>
+      </div>`).join('');
+  }
+
+  // ── 流式问答 ───────────────────────────────────────────────────────────
+  let askController = null;
+
+  async function doAsk() {
+    const query = document.getElementById('ask-query').value.trim();
+    const top_k = parseInt(document.getElementById('ask-topk').value);
+    if (!query) { toast('请输入问题', 'error'); return; }
+
+    if (askController) { askController.abort(); }
+    askController = new AbortController();
+
+    const btn = document.getElementById('ask-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 回答中...';
+
+    const answerBox = document.getElementById('answer-box');
+    answerBox.innerHTML = '<span class="cursor"></span>';
+    document.getElementById('sources-area').style.display = 'none';
+    document.getElementById('sources-list').innerHTML = '';
+
+    let answerText = '';
+    let noticeText = '';
+
+    try {
+      const res = await fetch(`${API}/knowledge/ask`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({query, top_k}),
+        signal: askController.signal
+      });
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const evt = JSON.parse(line.slice(6));
+            if (evt.type === 'sources') {
+              renderSources(evt.data);
+            } else if (evt.type === 'notice') {
+              noticeText = evt.data;
+              answerBox.innerHTML = `<div style="color:#888;font-size:.82rem;margin-bottom:8px;">${esc(noticeText)}</div><span class="cursor"></span>`;
+            } else if (evt.type === 'text') {
+              answerText += evt.data;
+              const noticeHtml = noticeText ? `<div style="color:#888;font-size:.82rem;margin-bottom:8px;">${esc(noticeText)}</div>` : '';
+              answerBox.innerHTML = noticeHtml + esc(answerText) + '<span class="cursor"></span>';
+              answerBox.scrollTop = answerBox.scrollHeight;
+            } else if (evt.type === 'done') {
+              const noticeHtml = noticeText ? `<div style="color:#888;font-size:.82rem;margin-bottom:8px;">${esc(noticeText)}</div>` : '';
+              answerBox.innerHTML = noticeHtml + esc(answerText);
+            } else if (evt.type === 'error') {
+              toast(evt.data, 'error');
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') toast('请求失败: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '💬 提问';
+    }
+  }
+
+  function renderSources(sources) {
+    if (!sources.length) return;
+    document.getElementById('sources-area').style.display = 'block';
+    document.getElementById('sources-list').innerHTML = sources.map(s =>
+      `<span class="source-tag" title="相关度 ${(s.score*100).toFixed(1)}%">${esc(s.title || s.id)}</span>`
+    ).join('');
+  }
+
+  // ── 工具 ───────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 初始化
+  loadList(1);
+</script>
+</body>
+</html>

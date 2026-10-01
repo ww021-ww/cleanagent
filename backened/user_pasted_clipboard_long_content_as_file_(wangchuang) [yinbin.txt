@@ -1,0 +1,324 @@
+(wangchuang) [yinbin@sdw2 multiagent]$ docker exec -it wangchuang02_vuln_db mysql -uroot -p'qaxwangchuang02' -e "
+S FROM t_cve_main;
+SHOW COLUMNS FROM t_cve_metrics> USE vuln_db1;
+> SHOW COLUMNS FROM t_cve_main;
+> SHOW COLUMNS FROM t_cve_metrics;
+t_nvd_metrics;
+SHOW COLUMNS FROM t_cnvd_info;
+SHOW> SHOW COLUMNS FROM t_nvd_main;
+ COLUMNS FROM t_cisa_info;
+SHOW COLUMNS FROM t_cer> SHOW COLUMNS FROM t_nvd_metrics;
+> SHOW COLUMNS FROM t_cnvd_info;
+> SHOW COLUMNS FROM t_cisa_info;
+> SHOW COLUMNS FROM t_cert_info;
+> SHOW COLUMNS FROM t_jvn_info;
+> "
+mysql: [Warning] Using a password on the command line interface can be insecure.
++-------------------------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| Field                                     | Type         | Null | Key | Default              | Extra                                            |
++-------------------------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| id                                        | bigint       | NO   | PRI | NULL                 | auto_increment                                   |
+| status                                    | int          | NO   |     | 0                    |                                                  |
+| is_deleted                                | tinyint(1)   | NO   |     | 0                    |                                                  |
+| cveMetadata_cveId                         | varchar(50)  | NO   | UNI | NULL                 |                                                  |
+| cveMetadata_state                         | varchar(50)  | YES  | MUL | NULL                 |                                                  |
+| cveMetadata_assignerOrgId                 | varchar(255) | YES  |     | NULL                 |                                                  |
+| cveMetadata_assignerShortName             | varchar(255) | YES  |     | NULL                 |                                                  |
+| cveMetadata_dateReserved                  | datetime(6)  | YES  |     | NULL                 |                                                  |
+| cveMetadata_datePublished                 | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| cveMetadata_dateRejected                  | datetime(6)  | YES  |     | NULL                 |                                                  |
+| cveMetadata_dateUpdated                   | datetime(6)  | YES  |     | NULL                 |                                                  |
+| cveMetadata_requesterUserId               | varchar(255) | YES  |     | NULL                 |                                                  |
+| cveMetadata_serial                        | bigint       | YES  |     | NULL                 |                                                  |
+| dataType                                  | varchar(50)  | YES  |     | NULL                 |                                                  |
+| dataVersion                               | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_title                      | varchar(500) | YES  |     | NULL                 |                                                  |
+| containers_cna_affected_product           | varchar(255) | YES  |     | NULL                 |                                                  |
+| containers_cna_affected_vendor            | varchar(255) | YES  |     | NULL                 |                                                  |
+| containers_cna_datePublic                 | datetime(6)  | YES  |     | NULL                 |                                                  |
+| containers_cna_affected_cpes              | text         | YES  |     | NULL                 |                                                  |
+| containers_cna_descriptions_lang          | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_descriptions_value         | text         | YES  |     | NULL                 |                                                  |
+| containers_cna_impacts_descriptions_lang  | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_impacts_descriptions_value | text         | YES  |     | NULL                 |                                                  |
+| containers_cna_exploits_lang              | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_exploits_value             | text         | YES  |     | NULL                 |                                                  |
+| containers_cna_solutions_lang             | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_solutions_value            | text         | YES  |     | NULL                 |                                                  |
+| containers_cna_workarounds_lang           | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_workarounds_value          | text         | YES  |     | NULL                 |                                                  |
+| containers_cna_timeline_lang              | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_timeline_value             | text         | YES  |     | NULL                 |                                                  |
+| containers_cna_metrics_other_type         | varchar(255) | YES  |     | NULL                 |                                                  |
+| containers_cna_source_lang                | varchar(50)  | YES  |     | NULL                 |                                                  |
+| containers_cna_source_value               | varchar(255) | YES  |     | NULL                 |                                                  |
+| containers_cna_references_name            | varchar(255) | YES  |     | NULL                 |                                                  |
+| containers_cna_references_tags            | varchar(255) | YES  |     | NULL                 |                                                  |
+| containers_cna_references_url             | varchar(512) | YES  |     | NULL                 |                                                  |
+| create_time                               | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED                                |
+| modify_time                               | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6) |
++-------------------------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
++-------------------------------------------------------+--------------+------+-----+----------------------+-------------------+
+| Field                                                 | Type         | Null | Key | Default              | Extra             |
++-------------------------------------------------------+--------------+------+-----+----------------------+-------------------+
+| id                                                    | bigint       | NO   | PRI | NULL                 | auto_increment    |
+| cve_id                                                | varchar(50)  | NO   | MUL | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_accessComplexity      | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_accessVector          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_authentication        | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_availabilityImpact    | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_baseScore             | float        | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_confidentialityImpact | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_integrityImpact       | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_vectorString          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV2_0_version               | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_integrityImpact       | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_scope                 | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_confidentialityImpact | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_userInteraction       | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_privilegesRequired    | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_attackComplexity      | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_attackVector          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_availabilityImpact    | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_baseScore             | float        | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_baseSeverity          | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_vectorString          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_0_version               | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_privilegesRequired    | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_availabilityImpact    | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_confidentialityImpact | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_integrityImpact       | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_attackComplexity      | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_attackVector          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_baseScore             | float        | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_baseSeverity          | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_userInteraction       | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_vectorString          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_scope                 | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV3_1_version               | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_privilegesRequired    | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_attackComplexity      | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_attackRequirements    | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_attackVector          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_baseScore             | float        | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_baseSeverity          | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_vectorString          | varchar(255) | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_userInteraction       | varchar(50)  | YES  |     | NULL                 |                   |
+| containers_cna_metrics_cvssV4_0_version               | varchar(50)  | YES  |     | NULL                 |                   |
+| create_time                                           | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED |
++-------------------------------------------------------+--------------+------+-----+----------------------+-------------------+
++-----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| Field                       | Type         | Null | Key | Default              | Extra                                            |
++-----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| id                          | bigint       | NO   | PRI | NULL                 | auto_increment                                   |
+| status                      | int          | NO   |     | 0                    |                                                  |
+| is_deleted                  | tinyint(1)   | NO   |     | 0                    |                                                  |
+| cve_id                      | varchar(50)  | NO   | UNI | NULL                 |                                                  |
+| descriptions_lang           | varchar(50)  | YES  |     | NULL                 |                                                  |
+| descriptions_value          | text         | YES  |     | NULL                 |                                                  |
+| published                   | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| lastModified                | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| references_url              | varchar(512) | YES  |     | NULL                 |                                                  |
+| evaluatorComment            | text         | YES  |     | NULL                 |                                                  |
+| vendorComments_comment      | text         | YES  |     | NULL                 |                                                  |
+| vendorComments_lastModified | datetime(6)  | YES  |     | NULL                 |                                                  |
+| vendorComments_organization | varchar(255) | YES  |     | NULL                 |                                                  |
+| create_time                 | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED                                |
+| modify_time                 | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6) |
++-----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
++------------------------------------------------------+--------------+------+-----+----------------------+-------------------+
+| Field                                                | Type         | Null | Key | Default              | Extra             |
++------------------------------------------------------+--------------+------+-----+----------------------+-------------------+
+| id                                                   | bigint       | NO   | PRI | NULL                 | auto_increment    |
+| cve_id                                               | varchar(50)  | NO   | MUL | NULL                 |                   |
+| metrics_cvssMetricV2_source                          | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_type                            | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_baseSeverity                    | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_accessComplexity       | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_accessVector           | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_authentication         | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_availabilityImpact     | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_baseScore              | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_confidentialityImpact  | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_integrityImpact        | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_vectorString           | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_cvssData_version                | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_exploitabilityScore             | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV2_impactScore                     | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_attackComplexity      | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_attackVector          | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_availabilityImpact    | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_baseScore             | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_baseSeverity          | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_confidentialityImpact | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_integrityImpact       | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_privilegesRequired    | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_scope                 | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_userInteraction       | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_vectorString          | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_cvssData_version               | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_exploitabilityScore            | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_impactScore                    | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_source                         | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV30_type                           | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_attackComplexity      | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_attackVector          | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_availabilityImpact    | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_baseScore             | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_baseSeverity          | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_confidentialityImpact | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_integrityImpact       | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_privilegesRequired    | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_scope                 | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_userInteraction       | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_vectorString          | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_cvssData_version               | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_exploitabilityScore            | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_impactScore                    | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_source                         | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV31_type                           | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_attackComplexity      | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_attackVector          | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_baseScore             | float        | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_baseSeverity          | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_privilegesRequired    | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_userInteraction       | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_vectorString          | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_cvssData_version               | varchar(50)  | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_source                         | varchar(255) | YES  |     | NULL                 |                   |
+| metrics_cvssMetricV40_type                           | varchar(255) | YES  |     | NULL                 |                   |
+| create_time                                          | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED |
++------------------------------------------------------+--------------+------+-----+----------------------+-------------------+
++--------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| Field                    | Type         | Null | Key | Default              | Extra                                            |
++--------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| id                       | bigint       | NO   | PRI | NULL                 | auto_increment                                   |
+| status                   | int          | NO   |     | 0                    |                                                  |
+| is_deleted               | tinyint(1)   | NO   |     | 0                    |                                                  |
+| cnvd_id                  | varchar(50)  | NO   | UNI | NULL                 |                                                  |
+| Publicdate               | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| severity                 | varchar(50)  | YES  | MUL | NULL                 |                                                  |
+| products                 | text         | YES  |     | NULL                 |                                                  |
+| cveid                    | varchar(50)  | YES  | MUL | NULL                 |                                                  |
+| description              | text         | YES  |     | NULL                 |                                                  |
+| vulnerabilitiestype      | varchar(255) | YES  |     | NULL                 |                                                  |
+| referencelink            | varchar(255) | YES  |     | NULL                 |                                                  |
+| solutions                | text         | YES  |     | NULL                 |                                                  |
+| Vendor Patch             | text         | YES  |     | NULL                 |                                                  |
+| Verification Information | text         | YES  |     | NULL                 |                                                  |
+| submitTime               | datetime(6)  | YES  |     | NULL                 |                                                  |
+| collectionTime           | datetime(6)  | YES  |     | NULL                 |                                                  |
+| updateTime               | datetime(6)  | YES  |     | NULL                 |                                                  |
+| Vulnerability Attachment | text         | YES  |     | NULL                 |                                                  |
+| create_time              | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED                                |
+| modify_time              | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6) |
++--------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
++----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| Field                      | Type         | Null | Key | Default              | Extra                                            |
++----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| id                         | bigint       | NO   | PRI | NULL                 | auto_increment                                   |
+| status                     | int          | NO   |     | 0                    |                                                  |
+| is_deleted                 | tinyint(1)   | NO   |     | 0                    |                                                  |
+| cveID                      | varchar(50)  | NO   | UNI | NULL                 |                                                  |
+| vendorProject              | varchar(255) | YES  | MUL | NULL                 |                                                  |
+| product                    | varchar(255) | YES  |     | NULL                 |                                                  |
+| vulnerabilityName          | varchar(500) | YES  |     | NULL                 |                                                  |
+| dateAdded                  | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| shortDescription           | text         | YES  |     | NULL                 |                                                  |
+| requiredAction             | text         | YES  |     | NULL                 |                                                  |
+| dueDate                    | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| knownRansomwareCampaignUse | varchar(50)  | YES  |     | NULL                 |                                                  |
+| notes                      | text         | YES  |     | NULL                 |                                                  |
+| cwes                       | varchar(255) | YES  |     | NULL                 |                                                  |
+| create_time                | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED                                |
+| modify_time                | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6) |
++----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
++----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| Field                      | Type         | Null | Key | Default              | Extra                                            |
++----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| id                         | bigint       | NO   | PRI | NULL                 | auto_increment                                   |
+| status                     | int          | NO   |     | 0                    |                                                  |
+| is_deleted                 | tinyint(1)   | NO   |     | 0                    |                                                  |
+| vuid                       | varchar(50)  | NO   | UNI | NULL                 |                                                  |
+| idnumber                   | varchar(50)  | YES  |     | NULL                 |                                                  |
+| name                       | varchar(255) | YES  |     | NULL                 |                                                  |
+| keywords                   | varchar(255) | YES  |     | NULL                 |                                                  |
+| overview                   | text         | YES  |     | NULL                 |                                                  |
+| clean_desc                 | text         | YES  |     | NULL                 |                                                  |
+| impact                     | text         | YES  |     | NULL                 |                                                  |
+| resolution                 | text         | YES  |     | NULL                 |                                                  |
+| workarounds                | text         | YES  |     | NULL                 |                                                  |
+| sysaffected                | text         | YES  |     | NULL                 |                                                  |
+| cveids                     | varchar(255) | YES  | MUL | NULL                 |                                                  |
+| datecreated                | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| publicdate                 | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| datefirstpublished         | datetime(6)  | YES  |     | NULL                 |                                                  |
+| dateupdated                | datetime(6)  | YES  |     | NULL                 |                                                  |
+| revision                   | varchar(50)  | YES  |     | NULL                 |                                                  |
+| cam_widelyknown            | tinyint(1)   | YES  |     | NULL                 |                                                  |
+| cam_exploitation           | tinyint(1)   | YES  |     | NULL                 |                                                  |
+| cam_internetinfrastructure | tinyint(1)   | YES  |     | NULL                 |                                                  |
+| cam_scorecurrent           | float        | YES  |     | NULL                 |                                                  |
+| ipprotocol                 | varchar(50)  | YES  |     | NULL                 |                                                  |
+| cvss_accessvector          | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_accesscomplexity      | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_authentication        | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_confidentialityimpact | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_integrityimpact       | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_availabilityimpact    | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_exploitablity         | float        | YES  |     | NULL                 |                                                  |
+| cvss_basescore             | float        | YES  |     | NULL                 |                                                  |
+| cvss_basevector            | varchar(255) | YES  |     | NULL                 |                                                  |
+| vulnote                    | text         | YES  |     | NULL                 |                                                  |
+| create_time                | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED                                |
+| modify_time                | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6) |
++----------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
++-------------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| Field                         | Type         | Null | Key | Default              | Extra                                            |
++-------------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+| id                            | bigint       | NO   | PRI | NULL                 | auto_increment                                   |
+| status                        | int          | NO   |     | 0                    |                                                  |
+| is_deleted                    | tinyint(1)   | NO   |     | 0                    |                                                  |
+| jvn_number                    | varchar(50)  | NO   | UNI | NULL                 |                                                  |
+| title                         | varchar(500) | YES  |     | NULL                 |                                                  |
+| critical                      | varchar(50)  | YES  | MUL | NULL                 |                                                  |
+| published_date                | datetime(6)  | YES  | MUL | NULL                 |                                                  |
+| last_updated                  | datetime(6)  | YES  |     | NULL                 |                                                  |
+| overview                      | text         | YES  |     | NULL                 |                                                  |
+| Affected Systems/Products     | text         | YES  |     | NULL                 |                                                  |
+| description                   | text         | YES  |     | NULL                 |                                                  |
+| impact                        | text         | YES  |     | NULL                 |                                                  |
+| solutions                     | text         | YES  |     | NULL                 |                                                  |
+| workaround                    | text         | YES  |     | NULL                 |                                                  |
+| vendor_name                   | varchar(255) | YES  |     | NULL                 |                                                  |
+| vendor_status                 | varchar(255) | YES  |     | NULL                 |                                                  |
+| vendor_lastupdateddate        | varchar(512) | YES  |     | NULL                 |                                                  |
+| vendor_notes                  | text         | YES  |     | NULL                 |                                                  |
+| cvss_v3_base_score            | float        | YES  |     | NULL                 |                                                  |
+| cvss_v3_attackvector          | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v3_attackcomplexity      | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v3_privilegesrequired    | varchar(50)  | YES  |     | NULL                 |                                                  |
+| cvss_v3_userinteraction       | varchar(50)  | YES  |     | NULL                 |                                                  |
+| cvss_v3_scope                 | varchar(50)  | YES  |     | NULL                 |                                                  |
+| cvss_v3_confidentialityimpact | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v3_integrityimpact       | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v3_availabilityimpact    | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v2_base_score            | float        | YES  |     | NULL                 |                                                  |
+| cvss_v2_accessvector          | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v2_accesscomplexity      | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v2_authentication        | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v2_confidentialityimpact | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v2_integrityimpact       | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v2_availabilityimpact    | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v_accessvector           | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v_privilegesrequired     | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v_userinteraction        | varchar(255) | YES  |     | NULL                 |                                                  |
+| cvss_v_attackcomplexity       | varchar(255) | YES  |     | NULL                 |                                                  |
+| reference_url                 | varchar(512) | YES  |     | NULL                 |                                                  |
+| supplement_information        | text         | YES  |     | NULL                 |                                                  |
+| reference_name                | varchar(255) | YES  |     | NULL                 |                                                  |
+| revision_history              | text         | YES  |     | NULL                 |                                                  |
+| create_time                   | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED                                |
+| modify_time                   | datetime(6)  | YES  |     | CURRENT_TIMESTAMP(6) | DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6) |
++-------------------------------+--------------+------+-----+----------------------+--------------------------------------------------+
+(wangchuang) [yinbin@sdw2 multiagent]$ 

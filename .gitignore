@@ -1,0 +1,54 @@
+# Local secrets and machine-specific configuration
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+
+# Python-generated files
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Runtime data and logs
+**/logs/
+**/*.log
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+backened/html/
+backened/json/
+backened/progress.json
+backened/config/database.env
+# Local one-off migration script currently contains database credentials.
+backened/alter_cisa_table.py
+
+# Frontend dependencies and builds
+Frontend/node_modules/
+Frontend/dist/
+
+# IDE and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local Codex/Superpowers state
+.superpowers/
+.worktrees/
+
+# Reference projects and learning material outside CleanAgent's runtime
+30节课学习/
+调整代码/
+简历/
+教学文档/
+项目技术提取/
+claude-code-main/
+deepagents-main/
+*.zip
+*.ipynb

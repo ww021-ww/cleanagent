@@ -1,0 +1,15 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: 'Noto Sans SC', 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #f5f7fb 0%, #eef2fa 100%);
+  color: #2b3552;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 20px;
+}

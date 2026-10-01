@@ -1,0 +1,1417 @@
+# 字段映射配置文件
+# Field Mappings Configuration for 6 Vulnerability Sources
+
+# CVE漏洞库配置
+cve:
+  table_name: t_cve_main
+  id_field: cveMetadata_cveId
+  id_pattern: "CVE-\\d{4}-\\d+"
+  has_subtable: true
+  subtable:
+    name: t_cve_metrics
+    foreign_key: cve_id
+    fields:
+      - name: cve_id
+        type: string
+        max_length: 50
+        required: true
+        description: "CVE ID (外键)"
+      
+      # CVSS v2.0 字段
+      - name: containers_cna_metrics_cvssV2_0_accessComplexity
+        type: string
+        max_length: 255
+        description: "访问复杂度"
+      
+      - name: containers_cna_metrics_cvssV2_0_accessVector
+        type: string
+        max_length: 255
+        description: "访问向量"
+      
+      - name: containers_cna_metrics_cvssV2_0_authentication
+        type: string
+        max_length: 255
+        description: "认证要求"
+      
+      - name: containers_cna_metrics_cvssV2_0_availabilityImpact
+        type: string
+        max_length: 255
+        description: "可用性影响"
+      
+      - name: containers_cna_metrics_cvssV2_0_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: containers_cna_metrics_cvssV2_0_confidentialityImpact
+        type: string
+        max_length: 255
+        description: "机密性影响"
+      
+      - name: containers_cna_metrics_cvssV2_0_integrityImpact
+        type: string
+        max_length: 255
+        description: "完整性影响"
+      
+      - name: containers_cna_metrics_cvssV2_0_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: containers_cna_metrics_cvssV2_0_version
+        type: string
+        max_length: 50
+        description: "CVSS版本"
+      
+      # CVSS v3.0 字段
+      - name: containers_cna_metrics_cvssV3_0_integrityImpact
+        type: string
+        max_length: 255
+        description: "完整性影响"
+      
+      - name: containers_cna_metrics_cvssV3_0_scope
+        type: string
+        max_length: 50
+        description: "作用域"
+      
+      - name: containers_cna_metrics_cvssV3_0_confidentialityImpact
+        type: string
+        max_length: 255
+        description: "机密性影响"
+      
+      - name: containers_cna_metrics_cvssV3_0_userInteraction
+        type: string
+        max_length: 50
+        description: "用户交互"
+      
+      - name: containers_cna_metrics_cvssV3_0_privilegesRequired
+        type: string
+        max_length: 50
+        description: "权限要求"
+      
+      - name: containers_cna_metrics_cvssV3_0_attackComplexity
+        type: string
+        max_length: 255
+        description: "攻击复杂度"
+      
+      - name: containers_cna_metrics_cvssV3_0_attackVector
+        type: string
+        max_length: 255
+        description: "攻击向量"
+      
+      - name: containers_cna_metrics_cvssV3_0_availabilityImpact
+        type: string
+        max_length: 255
+        description: "可用性影响"
+      
+      - name: containers_cna_metrics_cvssV3_0_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: containers_cna_metrics_cvssV3_0_baseSeverity
+        type: string
+        max_length: 50
+        description: "基础严重程度"
+      
+      - name: containers_cna_metrics_cvssV3_0_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: containers_cna_metrics_cvssV3_0_version
+        type: string
+        max_length: 50
+        description: "版本"
+      
+      # CVSS v3.1 字段
+      - name: containers_cna_metrics_cvssV3_1_privilegesRequired
+        type: string
+        max_length: 50
+        description: "权限要求"
+      
+      - name: containers_cna_metrics_cvssV3_1_availabilityImpact
+        type: string
+        max_length: 255
+        description: "可用性影响"
+      
+      - name: containers_cna_metrics_cvssV3_1_confidentialityImpact
+        type: string
+        max_length: 255
+        description: "机密性影响"
+      
+      - name: containers_cna_metrics_cvssV3_1_integrityImpact
+        type: string
+        max_length: 255
+        description: "完整性影响"
+      
+      - name: containers_cna_metrics_cvssV3_1_attackComplexity
+        type: string
+        max_length: 255
+        description: "攻击复杂度"
+      
+      - name: containers_cna_metrics_cvssV3_1_attackVector
+        type: string
+        max_length: 255
+        description: "攻击向量"
+      
+      - name: containers_cna_metrics_cvssV3_1_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: containers_cna_metrics_cvssV3_1_baseSeverity
+        type: string
+        max_length: 50
+        description: "基础严重程度"
+      
+      - name: containers_cna_metrics_cvssV3_1_userInteraction
+        type: string
+        max_length: 50
+        description: "用户交互"
+      
+      - name: containers_cna_metrics_cvssV3_1_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: containers_cna_metrics_cvssV3_1_scope
+        type: string
+        max_length: 50
+        description: "作用域"
+      
+      - name: containers_cna_metrics_cvssV3_1_version
+        type: string
+        max_length: 50
+        description: "版本"
+      
+      # CVSS v4.0 字段
+      - name: containers_cna_metrics_cvssV4_0_privilegesRequired
+        type: string
+        max_length: 50
+        description: "权限要求"
+      
+      - name: containers_cna_metrics_cvssV4_0_attackComplexity
+        type: string
+        max_length: 255
+        description: "攻击复杂度"
+      
+      - name: containers_cna_metrics_cvssV4_0_attackRequirements
+        type: string
+        max_length: 255
+        description: "攻击要求"
+      
+      - name: containers_cna_metrics_cvssV4_0_attackVector
+        type: string
+        max_length: 255
+        description: "攻击向量"
+      
+      - name: containers_cna_metrics_cvssV4_0_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: containers_cna_metrics_cvssV4_0_baseSeverity
+        type: string
+        max_length: 50
+        description: "基础严重程度"
+      
+      - name: containers_cna_metrics_cvssV4_0_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: containers_cna_metrics_cvssV4_0_userInteraction
+        type: string
+        max_length: 50
+        description: "用户交互"
+      
+      - name: containers_cna_metrics_cvssV4_0_version
+        type: string
+        max_length: 50
+        description: "版本"
+  
+  fields:
+    - name: cveMetadata_cveId
+      type: string
+      max_length: 50
+      required: true
+      description: "CVE ID (e.g., CVE-2024-12345)"
+      extraction_rules:
+        - selector: "meta[name='cve-id']"
+          attribute: "content"
+        - regex: "CVE-\\d{4}-\\d+"
+    
+    - name: cveMetadata_state
+      type: string
+      max_length: 50
+      description: "CVE状态 (PUBLISHED, REJECTED, etc.)"
+      extraction_rules:
+        - json_path: "cveMetadata.state"
+        - selector: ".cve-state"
+    
+    - name: cveMetadata_assignerOrgId
+      type: string
+      max_length: 255
+      description: "CVE分配机构ID"
+      extraction_rules:
+        - json_path: "cveMetadata.assignerOrgId"
+    
+    - name: cveMetadata_assignerShortName
+      type: string
+      max_length: 255
+      description: "CVE分配机构简称"
+      extraction_rules:
+        - json_path: "cveMetadata.assignerShortName"
+    
+    - name: cveMetadata_dateReserved
+      type: datetime
+      description: "CVE保留日期"
+      extraction_rules:
+        - json_path: "cveMetadata.dateReserved"
+    
+    - name: cveMetadata_datePublished
+      type: datetime
+      description: "CVE发布日期"
+      extraction_rules:
+        - json_path: "cveMetadata.datePublished"
+        - selector: "meta[name='datePublished']"
+          attribute: "content"
+    
+    - name: cveMetadata_dateRejected
+      type: datetime
+      description: "CVE拒绝日期"
+      extraction_rules:
+        - json_path: "cveMetadata.dateRejected"
+    
+    - name: cveMetadata_dateUpdated
+      type: datetime
+      description: "CVE更新日期"
+      extraction_rules:
+        - json_path: "cveMetadata.dateUpdated"
+    
+    - name: cveMetadata_requesterUserId
+      type: string
+      max_length: 255
+      description: "CVE请求用户ID"
+    
+    - name: cveMetadata_serial
+      type: integer
+      description: "CVE序列号"
+    
+    - name: dataType
+      type: string
+      max_length: 50
+      description: "数据类型"
+    
+    - name: dataVersion
+      type: string
+      max_length: 50
+      description: "数据版本"
+    
+    - name: containers_cna_title
+      type: string
+      max_length: 500
+      description: "CVE标题"
+      extraction_rules:
+        - json_path: "containers.cna.title"
+        - selector: "h1"
+        - selector: "title"
+    
+    - name: containers_cna_affected_product
+      type: string
+      max_length: 255
+      description: "受影响产品"
+    
+    - name: containers_cna_affected_vendor
+      type: string
+      max_length: 255
+      description: "受影响厂商"
+    
+    - name: containers_cna_datePublic
+      type: datetime
+      description: "公开日期"
+    
+    - name: containers_cna_affected_cpes
+      type: text
+      description: "受影响的CPE"
+    
+    - name: containers_cna_descriptions_lang
+      type: string
+      max_length: 50
+      description: "描述语言"
+    
+    - name: containers_cna_descriptions_value
+      type: text
+      description: "描述内容"
+      extraction_rules:
+        - json_path: "containers.cna.descriptions[0].value"
+        - selector: ".description"
+    
+    - name: containers_cna_impacts_descriptions_lang
+      type: string
+      max_length: 50
+      description: "影响描述语言"
+    
+    - name: containers_cna_impacts_descriptions_value
+      type: text
+      description: "影响描述内容"
+    
+    - name: containers_cna_exploits_lang
+      type: string
+      max_length: 50
+      description: "利用代码语言"
+    
+    - name: containers_cna_exploits_value
+      type: text
+      description: "利用代码内容"
+    
+    - name: containers_cna_solutions_lang
+      type: string
+      max_length: 50
+      description: "解决方案语言"
+    
+    - name: containers_cna_solutions_value
+      type: text
+      description: "解决方案内容"
+    
+    - name: containers_cna_workarounds_lang
+      type: string
+      max_length: 50
+      description: "变通方案语言"
+    
+    - name: containers_cna_workarounds_value
+      type: text
+      description: "变通方案内容"
+    
+    - name: containers_cna_timeline_lang
+      type: string
+      max_length: 50
+      description: "时间线语言"
+    
+    - name: containers_cna_timeline_value
+      type: text
+      description: "时间线内容"
+    
+    - name: containers_cna_metrics_other_type
+      type: string
+      max_length: 255
+      description: "其他指标类型"
+    
+    - name: containers_cna_source_lang
+      type: string
+      max_length: 50
+      description: "来源语言"
+    
+    - name: containers_cna_source_value
+      type: string
+      max_length: 255
+      description: "来源值"
+    
+    - name: containers_cna_references_name
+      type: string
+      max_length: 255
+      description: "参考名称"
+    
+    - name: containers_cna_references_tags
+      type: string
+      max_length: 255
+      description: "参考标签"
+    
+    - name: containers_cna_references_url
+      type: string
+      max_length: 512
+      description: "参考URL"
+      extraction_rules:
+        - selector: "a[href*='reference']"
+          attribute: "href"
+
+# NVD漏洞库配置
+nvd:
+  table_name: t_nvd_main
+  id_field: cve_id
+  id_pattern: "CVE-\\d{4}-\\d+"
+  has_subtable: true
+  subtable:
+    name: t_nvd_metrics
+    foreign_key: cve_id
+    fields:
+      - name: cve_id
+        type: string
+        max_length: 50
+        required: true
+        description: "CVE ID (外键)"
+      
+      # CVSS v2 字段 (16个)
+      - name: metrics_cvssMetricV2_source
+        type: string
+        max_length: 255
+        description: "来源"
+      
+      - name: metrics_cvssMetricV2_type
+        type: string
+        max_length: 255
+        description: "类型"
+      
+      - name: metrics_cvssMetricV2_baseSeverity
+        type: string
+        max_length: 50
+        description: "基础严重程度"
+      
+      - name: metrics_cvssMetricV2_cvssData_accessComplexity
+        type: string
+        max_length: 255
+        description: "访问复杂度"
+      
+      - name: metrics_cvssMetricV2_cvssData_accessVector
+        type: string
+        max_length: 255
+        description: "访问向量"
+      
+      - name: metrics_cvssMetricV2_cvssData_authentication
+        type: string
+        max_length: 255
+        description: "认证要求"
+      
+      - name: metrics_cvssMetricV2_cvssData_availabilityImpact
+        type: string
+        max_length: 255
+        description: "可用性影响"
+      
+      - name: metrics_cvssMetricV2_cvssData_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: metrics_cvssMetricV2_cvssData_confidentialityImpact
+        type: string
+        max_length: 255
+        description: "机密性影响"
+      
+      - name: metrics_cvssMetricV2_cvssData_integrityImpact
+        type: string
+        max_length: 255
+        description: "完整性影响"
+      
+      - name: metrics_cvssMetricV2_cvssData_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: metrics_cvssMetricV2_cvssData_version
+        type: string
+        max_length: 50
+        description: "版本"
+      
+      - name: metrics_cvssMetricV2_exploitabilityScore
+        type: float
+        description: "可利用性评分"
+      
+      - name: metrics_cvssMetricV2_impactScore
+        type: float
+        description: "影响评分"
+      
+      # CVSS v3.0 字段 (18个)
+      - name: metrics_cvssMetricV30_cvssData_attackComplexity
+        type: string
+        max_length: 255
+        description: "攻击复杂度"
+      
+      - name: metrics_cvssMetricV30_cvssData_attackVector
+        type: string
+        max_length: 255
+        description: "攻击向量"
+      
+      - name: metrics_cvssMetricV30_cvssData_availabilityImpact
+        type: string
+        max_length: 255
+        description: "可用性影响"
+      
+      - name: metrics_cvssMetricV30_cvssData_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: metrics_cvssMetricV30_cvssData_baseSeverity
+        type: string
+        max_length: 50
+        description: "基础严重程度"
+      
+      - name: metrics_cvssMetricV30_cvssData_confidentialityImpact
+        type: string
+        max_length: 255
+        description: "机密性影响"
+      
+      - name: metrics_cvssMetricV30_cvssData_integrityImpact
+        type: string
+        max_length: 255
+        description: "完整性影响"
+      
+      - name: metrics_cvssMetricV30_cvssData_privilegesRequired
+        type: string
+        max_length: 50
+        description: "权限要求"
+      
+      - name: metrics_cvssMetricV30_cvssData_scope
+        type: string
+        max_length: 50
+        description: "作用域"
+      
+      - name: metrics_cvssMetricV30_cvssData_userInteraction
+        type: string
+        max_length: 50
+        description: "用户交互"
+      
+      - name: metrics_cvssMetricV30_cvssData_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: metrics_cvssMetricV30_cvssData_version
+        type: string
+        max_length: 50
+        description: "版本"
+      
+      - name: metrics_cvssMetricV30_exploitabilityScore
+        type: float
+        description: "可利用性评分"
+      
+      - name: metrics_cvssMetricV30_impactScore
+        type: float
+        description: "影响评分"
+      
+      - name: metrics_cvssMetricV30_source
+        type: string
+        max_length: 255
+        description: "指标来源"
+      
+      - name: metrics_cvssMetricV30_type
+        type: string
+        max_length: 255
+        description: "类型"
+      
+      # CVSS v3.1 字段 (16个)
+      - name: metrics_cvssMetricV31_cvssData_attackComplexity
+        type: string
+        max_length: 255
+        description: "攻击复杂度"
+      
+      - name: metrics_cvssMetricV31_cvssData_attackVector
+        type: string
+        max_length: 255
+        description: "攻击向量"
+      
+      - name: metrics_cvssMetricV31_cvssData_availabilityImpact
+        type: string
+        max_length: 255
+        description: "可用性影响"
+      
+      - name: metrics_cvssMetricV31_cvssData_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: metrics_cvssMetricV31_cvssData_baseSeverity
+        type: string
+        max_length: 50
+        description: "基础严重程度"
+      
+      - name: metrics_cvssMetricV31_cvssData_confidentialityImpact
+        type: string
+        max_length: 255
+        description: "机密性影响"
+      
+      - name: metrics_cvssMetricV31_cvssData_integrityImpact
+        type: string
+        max_length: 255
+        description: "完整性影响"
+      
+      - name: metrics_cvssMetricV31_cvssData_privilegesRequired
+        type: string
+        max_length: 50
+        description: "权限要求"
+      
+      - name: metrics_cvssMetricV31_cvssData_scope
+        type: string
+        max_length: 50
+        description: "作用域"
+      
+      - name: metrics_cvssMetricV31_cvssData_userInteraction
+        type: string
+        max_length: 50
+        description: "用户交互"
+      
+      - name: metrics_cvssMetricV31_cvssData_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: metrics_cvssMetricV31_cvssData_version
+        type: string
+        max_length: 50
+        description: "版本"
+      
+      - name: metrics_cvssMetricV31_exploitabilityScore
+        type: float
+        description: "可利用性评分"
+      
+      - name: metrics_cvssMetricV31_impactScore
+        type: float
+        description: "影响评分"
+      
+      - name: metrics_cvssMetricV31_source
+        type: string
+        max_length: 255
+        description: "来源"
+      
+      - name: metrics_cvssMetricV31_type
+        type: string
+        max_length: 255
+        description: "类型"
+      
+      # CVSS v4.0 字段 (10个)
+      - name: metrics_cvssMetricV40_cvssData_attackComplexity
+        type: string
+        max_length: 255
+        description: "攻击复杂度"
+      
+      - name: metrics_cvssMetricV40_cvssData_attackVector
+        type: string
+        max_length: 255
+        description: "攻击向量"
+      
+      - name: metrics_cvssMetricV40_cvssData_baseScore
+        type: float
+        description: "基础评分"
+      
+      - name: metrics_cvssMetricV40_cvssData_baseSeverity
+        type: string
+        max_length: 50
+        description: "基础严重程度"
+      
+      - name: metrics_cvssMetricV40_cvssData_privilegesRequired
+        type: string
+        max_length: 50
+        description: "权限要求"
+      
+      - name: metrics_cvssMetricV40_cvssData_userInteraction
+        type: string
+        max_length: 50
+        description: "用户交互"
+      
+      - name: metrics_cvssMetricV40_cvssData_vectorString
+        type: string
+        max_length: 255
+        description: "向量字符串"
+      
+      - name: metrics_cvssMetricV40_cvssData_version
+        type: string
+        max_length: 50
+        description: "版本"
+      
+      - name: metrics_cvssMetricV40_source
+        type: string
+        max_length: 255
+        description: "来源"
+      
+      - name: metrics_cvssMetricV40_type
+        type: string
+        max_length: 255
+        description: "类型"
+  
+  fields:
+    - name: cve_id
+      type: string
+      max_length: 50
+      required: true
+      description: "CVE ID"
+      extraction_rules:
+        - regex: "CVE-\\d{4}-\\d+"
+        - selector: "meta[name='cve-id']"
+          attribute: "content"
+    
+    - name: descriptions_lang
+      type: string
+      max_length: 50
+      description: "描述语言"
+    
+    - name: descriptions_value
+      type: text
+      description: "描述内容"
+      extraction_rules:
+        - selector: ".description"
+        - selector: "meta[name='description']"
+          attribute: "content"
+    
+    - name: published
+      type: datetime
+      description: "发布时间"
+      extraction_rules:
+        - selector: "meta[name='published']"
+          attribute: "content"
+        - selector: ".published-date"
+    
+    - name: lastModified
+      type: datetime
+      description: "最后修改时间"
+      extraction_rules:
+        - selector: "meta[name='lastModified']"
+          attribute: "content"
+        - selector: ".last-modified"
+    
+    - name: references_url
+      type: string
+      max_length: 512
+      description: "参考URL"
+      extraction_rules:
+        - selector: "a[href*='reference']"
+          attribute: "href"
+    
+    - name: evaluatorComment
+      type: text
+      description: "评估者评论"
+    
+    - name: vendorComments_comment
+      type: text
+      description: "厂商评论"
+    
+    - name: vendorComments_lastModified
+      type: datetime
+      description: "厂商评论最后修改时间"
+    
+    - name: vendorComments_organization
+      type: string
+      max_length: 255
+      description: "厂商组织"
+
+# CNVD漏洞库配置
+cnvd:
+  table_name: t_cnvd_info
+  id_field: cnvd_id
+  id_pattern: "CNVD-\\d{4}-\\d+"
+  
+  fields:
+    - name: cnvd_id
+      type: string
+      max_length: 50
+      required: true
+      description: "CNVD ID (e.g., CNVD-2024-12345)"
+      extraction_rules:
+        - selector: "td:contains('CNVD-ID') + td"
+        - regex: "CNVD-\\d{4}-\\d+"
+    
+    - name: Publicdate
+      type: datetime
+      description: "公开日期"
+      extraction_rules:
+        - selector: "td:contains('公开日期') + td"
+        - selector: "td:contains('发布时间') + td"
+    
+    - name: severity
+      type: string
+      max_length: 50
+      description: "严重程度"
+      extraction_rules:
+        - selector: "td:contains('危害级别') + td"
+        - selector: "td:contains('严重程度') + td"
+    
+    - name: products
+      type: text
+      description: "受影响产品"
+      extraction_rules:
+        - selector: "td:contains('受影响产品') + td"
+        - selector: "td:contains('影响产品') + td"
+    
+    - name: cveid
+      type: string
+      max_length: 50
+      description: "关联的CVE ID"
+      extraction_rules:
+        - regex: "CVE-\\d{4}-\\d+"
+    
+    - name: description
+      type: text
+      description: "漏洞描述"
+      extraction_rules:
+        - selector: ".vuln-description"
+        - selector: "td:contains('漏洞描述') + td"
+    
+    - name: vulnerabilitiestype
+      type: string
+      max_length: 255
+      description: "漏洞类型"
+      extraction_rules:
+        - selector: "td:contains('漏洞类型') + td"
+    
+    - name: referenceLink
+      type: string
+      max_length: 512
+      description: "参考链接"
+      extraction_rules:
+        - selector: "td.alignRight:contains('参考链接') + td"
+    
+    - name: solutions
+      type: text
+      description: "漏洞解决方案"
+      extraction_rules:
+        - selector: "td.alignRight:contains('漏洞解决方案') + td"
+        - selector: "td:contains('解决方案') + td"
+        - selector: ".solution"
+    
+    - name: Vendor Patch
+      type: text
+      description: "厂商补丁"
+      extraction_rules:
+        - selector: "td.alignRight:contains('厂商补丁') + td"
+    
+    - name: Verification Information
+      type: text
+      description: "验证信息"
+      extraction_rules:
+        - selector: "td.alignRight:contains('验证信息') + td"
+    
+    - name: submitTime
+      type: datetime
+      description: "报送时间"
+      extraction_rules:
+        - selector: "td.alignRight:contains('报送时间') + td"
+    
+    - name: collectionTime
+      type: datetime
+      description: "收录时间"
+      extraction_rules:
+        - selector: "td.alignRight:contains('收录时间') + td"
+    
+    - name: updateTime
+      type: datetime
+      description: "更新时间"
+      extraction_rules:
+        - selector: "td.alignRight:contains('更新时间') + td"
+    
+    - name: Vulnerability Attachment
+      type: text
+      description: "漏洞附件"
+      extraction_rules:
+        - selector: "td.alignRight:contains('漏洞附件') + td"
+
+# CISA漏洞库配置
+cisa:
+  table_name: t_cisa_info
+  id_field: cveID
+  id_pattern: "CVE-\\d{4}-\\d+"
+  
+  fields:
+    - name: cveID
+      type: string
+      max_length: 50
+      required: true
+      description: "CVE ID"
+      extraction_rules:
+        - regex: "CVE-\\d{4}-\\d+"
+        - selector: "meta[name='cve-id']"
+          attribute: "content"
+    
+    - name: vendorProject
+      type: string
+      max_length: 255
+      description: "厂商项目名称"
+      extraction_rules:
+        - selector: "td:contains('Vendor') + td"
+        - selector: ".vendor-project"
+    
+    - name: product
+      type: string
+      max_length: 255
+      description: "产品名称"
+      extraction_rules:
+        - selector: "td:contains('Product') + td"
+        - selector: ".product-name"
+    
+    - name: vulnerabilityName
+      type: string
+      max_length: 500
+      description: "漏洞名称"
+      extraction_rules:
+        - selector: "h1"
+        - selector: ".vulnerability-name"
+        - selector: "title"
+    
+    - name: dateAdded
+      type: datetime
+      description: "添加日期"
+      extraction_rules:
+        - selector: "td:contains('Date Added') + td"
+        - selector: ".date-added"
+    
+    - name: shortDescription
+      type: text
+      description: "简短描述"
+      extraction_rules:
+        - selector: ".short-description"
+        - selector: "meta[name='description']"
+          attribute: "content"
+    
+    - name: requiredAction
+      type: text
+      description: "要求的行动"
+      extraction_rules:
+        - selector: "td:contains('Required Action') + td"
+        - selector: ".required-action"
+    
+    - name: dueDate
+      type: datetime
+      description: "截止日期"
+      extraction_rules:
+        - selector: "td:contains('Due Date') + td"
+        - selector: ".due-date"
+    
+    - name: knownRansomwareCampaignUse
+      type: string
+      max_length: 50
+      description: "已知勒索软件使用情况 (Unknown/Yes/No)"
+      extraction_rules:
+        - selector: "td:contains('Known Ransomware') + td"
+    
+    - name: notes
+      type: text
+      description: "备注"
+      extraction_rules:
+        - selector: ".notes"
+        - selector: "td:contains('Notes') + td"
+    
+    - name: cwes
+      type: string
+      max_length: 255
+      description: "CWE ID"
+      extraction_rules:
+        - regex: "CWE-\\d+"
+
+# CERT漏洞库配置
+cert:
+  table_name: t_cert_info
+  id_field: vuid
+  id_pattern: "VU#\\d+"
+  
+  fields:
+    - name: vuid
+      type: string
+      max_length: 50
+      required: true
+      description: "CERT漏洞ID (e.g., VU#123456)"
+      extraction_rules:
+        - regex: "VU#\\d+"
+    
+    - name: idnumber
+      type: string
+      max_length: 50
+      description: "编号"
+    
+    - name: name
+      type: string
+      max_length: 255
+      description: "漏洞标题"
+      extraction_rules:
+        - selector: "title"
+        - selector: "h1"
+        - selector: "meta[property='og:title']"
+          attribute: "content"
+    
+    - name: keywords
+      type: string
+      max_length: 255
+      description: "关键词"
+      extraction_rules:
+        - selector: "meta[name='keywords']"
+          attribute: "content"
+    
+    - name: overview
+      type: text
+      description: "概述"
+      extraction_rules:
+        - selector: "#overview + div.vulcontent"
+        - selector: "#overview + .vulcontent"
+        - selector: "h3#overview ~ div.vulcontent"
+    
+    - name: clean_desc
+      type: text
+      description: "详细描述"
+      extraction_rules:
+        - selector: "#description + p"
+        - selector: "h3#description ~ p"
+        - selector: "meta[name='Description']"
+          attribute: "content"
+    
+    - name: impact
+      type: text
+      description: "影响"
+      extraction_rules:
+        - selector: "#impact + p"
+        - selector: "h3#impact ~ p"
+    
+    - name: resolution
+      type: text
+      description: "解决方案"
+      extraction_rules:
+        - selector: "#solution + p"
+        - selector: "h3#solution ~ p"
+        - selector: "#resolution + p"
+    
+    - name: workarounds
+      type: text
+      description: "变通方案"
+      extraction_rules:
+        - selector: "#workaround + p"
+        - selector: "h3:contains('Workaround') ~ p"
+    
+    - name: sysaffected
+      type: text
+      description: "受影响系统"
+      extraction_rules:
+        - selector: "#systems-affected + p"
+        - selector: "h3:contains('Systems Affected') ~ p"
+    
+    - name: cveids
+      type: string
+      max_length: 255
+      description: "关联的CVE ID列表"
+      extraction_rules:
+        - regex: "CVE-\\d{4}-\\d+"
+    
+    - name: datecreated
+      type: datetime
+      description: "创建日期"
+    
+    - name: publicdate
+      type: datetime
+      description: "公开日期"
+      extraction_rules:
+        - selector: "meta[name='sei_date_published']"
+          attribute: "content"
+        - selector: "meta[name='published_at']"
+          attribute: "content"
+    
+    - name: datefirstpublished
+      type: datetime
+      description: "首次发布日期"
+    
+    - name: dateupdated
+      type: datetime
+      description: "更新日期"
+    
+    - name: revision
+      type: string
+      max_length: 50
+      description: "修订版本"
+    
+    - name: cam_widelyknown
+      type: boolean
+      description: "是否广泛知晓"
+    
+    - name: cam_exploitation
+      type: boolean
+      description: "是否被利用"
+    
+    - name: cam_internetinfrastructure
+      type: boolean
+      description: "是否影响互联网基础设施"
+    
+    - name: cam_scorecurrent
+      type: float
+      description: "当前评分"
+    
+    - name: ipprotocol
+      type: string
+      max_length: 50
+      description: "IP协议"
+    
+    - name: cvss_accessvector
+      type: string
+      max_length: 255
+      description: "CVSS访问向量"
+    
+    - name: cvss_accesscomplexity
+      type: string
+      max_length: 255
+      description: "CVSS访问复杂度"
+    
+    - name: cvss_authentication
+      type: string
+      max_length: 255
+      description: "CVSS认证要求"
+    
+    - name: cvss_confidentialityimpact
+      type: string
+      max_length: 255
+      description: "CVSS机密性影响"
+    
+    - name: cvss_integrityimpact
+      type: string
+      max_length: 255
+      description: "CVSS完整性影响"
+    
+    - name: cvss_availabilityimpact
+      type: string
+      max_length: 255
+      description: "CVSS可用性影响"
+    
+    - name: cvss_exploitablity
+      type: float
+      description: "CVSS可利用性"
+    
+    - name: cvss_basescore
+      type: float
+      description: "CVSS基础评分"
+    
+    - name: cvss_basevector
+      type: string
+      max_length: 255
+      description: "CVSS基础向量"
+    
+    - name: vulnote
+      type: text
+      description: "漏洞说明"
+
+# JVN漏洞库配置
+jvn:
+  table_name: t_jvn_info
+  id_field: jvn_number
+  id_pattern: "(JVN#\\d+|JVNVU#\\d+|CPNI-\\d+|NISCC-\\d+|JVNTA\\d+-\\d+[A-Z]*(\\(\\d+\\))?)"
+  
+  fields:
+    - name: jvn_number
+      type: string
+      max_length: 50
+      required: true
+      description: "JVN编号 (e.g., JVN#12345678)"
+      extraction_rules:
+        - regex: "JVN#\\d+"
+        - selector: "meta[name='jvn-id']"
+          attribute: "content"
+    
+    - name: title
+      type: string
+      max_length: 500
+      description: "漏洞标题"
+      extraction_rules:
+        - selector: "h1"
+        - selector: "title"
+        - selector: "meta[property='og:title']"
+          attribute: "content"
+    
+    - name: critical
+      type: string
+      max_length: 50
+      description: "严重程度"
+      extraction_rules:
+        - selector: ".critical"
+        - selector: "td:contains('深刻度') + td"
+    
+    - name: published_date
+      type: datetime
+      description: "发布日期"
+      extraction_rules:
+        - selector: "meta[name='published_date']"
+          attribute: "content"
+        - selector: "td:contains('公表日') + td"
+    
+    - name: last_updated
+      type: datetime
+      description: "最后更新日期"
+      extraction_rules:
+        - selector: "meta[name='last_updated']"
+          attribute: "content"
+        - selector: "td:contains('最終更新日') + td"
+    
+    - name: overview
+      type: text
+      description: "概要"
+      extraction_rules:
+        - selector: ".overview"
+        - selector: "#overview"
+        - selector: "h3:contains('概要') ~ p"
+    
+    - name: Affected Systems/Products
+      type: text
+      description: "受影响系统/产品"
+      extraction_rules:
+        - selector: "h3:contains('対象') ~ div"
+        - selector: ".affected-products"
+    
+    - name: description
+      type: text
+      description: "漏洞描述"
+      extraction_rules:
+        - selector: ".description"
+        - selector: "meta[name='description']"
+          attribute: "content"
+
+    - name: related_cve_ids
+      type: string
+      max_length: 512
+      description: "从description提取的关联CVE，多个用|分隔"
+    
+    - name: impact
+      type: text
+      description: "想定される影響（预期影响）"
+      extraction_rules:
+        - selector: "h3:contains('想定される影響') ~ p"
+        - selector: ".impact"
+    
+    - name: solutions
+      type: text
+      description: "対策（对策/解决方案）"
+      extraction_rules:
+        - selector: "h3:contains('対策') ~ div"
+        - selector: ".solutions"
+    
+    - name: workaround
+      type: text
+      description: "変通方案"
+      extraction_rules:
+        - selector: "h3:contains('ワークアラウンド') ~ p"
+        - selector: ".workaround"
+    
+    - name: vendor_name
+      type: string
+      max_length: 255
+      description: "厂商名称"
+      extraction_rules:
+        - selector: ".vendor-name"
+        - selector: "td:contains('ベンダ') + td"
+    
+    - name: vendor_status
+      type: string
+      max_length: 255
+      description: "厂商状态"
+    
+    - name: vendor_lastupdateddate
+      type: string
+      max_length: 512
+      description: "厂商最后更新日期（多个用 | 分隔）"
+    
+    - name: vendor_notes
+      type: text
+      description: "厂商备注"
+    
+    - name: cvss_v_accessvector
+      type: string
+      max_length: 255
+      description: "CVSS攻击路径（旧版评价表格-攻撃経路）"
+
+    - name: cvss_v_privilegesrequired
+      type: string
+      max_length: 255
+      description: "CVSS认证级别（旧版评价表格-認証レベル）"
+
+    - name: cvss_v_userinteraction
+      type: string
+      max_length: 255
+      description: "CVSS用户参与（旧版评价表格-ユーザ関与）"
+
+    - name: cvss_v_attackcomplexity
+      type: string
+      max_length: 255
+      description: "CVSS攻击难度（旧版评价表格-攻撃の難易度）"
+    
+    - name: cvss_v3_base_score
+      type: float
+      description: "CVSS3基础评分"
+      extraction_rules:
+        - selector: ".cvss-v3-score"
+        - regex: "CVSS:3\\.\\d/[^\\s]+/Base:(\\d+\\.\\d+)"
+    
+    - name: cvss_v3_attackvector
+      type: string
+      max_length: 255
+      description: "CVSS3攻击向量"
+    
+    - name: cvss_v3_attackcomplexity
+      type: string
+      max_length: 255
+      description: "CVSS3攻击复杂度"
+    
+    - name: cvss_v3_privilegesrequired
+      type: string
+      max_length: 50
+      description: "CVSS3权限要求"
+    
+    - name: cvss_v3_userinteraction
+      type: string
+      max_length: 50
+      description: "CVSS3用户交互"
+    
+    - name: cvss_v3_scope
+      type: string
+      max_length: 50
+      description: "CVSS3作用域"
+    
+    - name: cvss_v3_confidentialityimpact
+      type: string
+      max_length: 255
+      description: "CVSS3机密性影响"
+    
+    - name: cvss_v3_integrityimpact
+      type: string
+      max_length: 255
+      description: "CVSS3完整性影响"
+    
+    - name: cvss_v3_availabilityimpact
+      type: string
+      max_length: 255
+      description: "CVSS3可用性影响"
+    
+    - name: cvss_v2_base_score
+      type: float
+      description: "CVSS2基础评分"
+    
+    - name: cvss_v2_accessvector
+      type: string
+      max_length: 255
+      description: "CVSS2访问向量"
+    
+    - name: cvss_v2_accesscomplexity
+      type: string
+      max_length: 255
+      description: "CVSS2访问复杂度"
+    
+    - name: cvss_v2_authentication
+      type: string
+      max_length: 255
+      description: "CVSS2认证要求"
+    
+    - name: cvss_v2_confidentialityimpact
+      type: string
+      max_length: 255
+      description: "CVSS2机密性影响"
+    
+    - name: cvss_v2_integrityimpact
+      type: string
+      max_length: 255
+      description: "CVSS2完整性影响"
+    
+    - name: cvss_v2_availabilityimpact
+      type: string
+      max_length: 255
+      description: "CVSS2可用性影响"
+    
+    - name: reference_url
+      type: string
+      max_length: 512
+      description: "参考URL"
+      extraction_rules:
+        - selector: "a[href*='reference']"
+          attribute: "href"
+    
+    - name: supplement_information
+      type: text
+      description: "补充信息"
+    
+    - name: vendor_url
+      type: string
+      max_length: 512
+      description: "厂商URL"
+      extraction_rules:
+        - selector: "a[href*='vendor']"
+          attribute: "href"
+    
+    - name: reference_name
+      type: string
+      max_length: 255
+      description: "参考名称"
+    
+    - name: revision_history
+      type: text
+      description: "修订历史"
