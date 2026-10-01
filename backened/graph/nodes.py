@@ -37,10 +37,12 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
         source = extractor.identify_source(state['file_path'], content)
         source_lower = source.lower()
 
-        # 单文件去重检查（先查 Memory，miss 再查 DB，使用复用的 _storage）
+        dry_run = config.get('processing', {}).get('dry_run', False)
+
+        # 单文件去重检查（Dry Run 必须绕过数据库）
         compare_id = normalize_jvn_id(source, Path(state['file_path']).stem)
         memory = config.get('_memory')
-        if memory and memory.is_seen(compare_id, source):
+        if not dry_run and memory and memory.is_seen(compare_id, source):
             logger.info(f"⏭️ 跳过(Memory已见): {file_name}")
             return {
                 **state,
@@ -50,34 +52,35 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
                 'extraction_confidence': 0.0,
                 'final_status': 'skipped',
             }
-        try:
-            from agent.storage import StorageAgent
-            storage_check = config.get('_storage') or StorageAgent(config, None)
-            model_class = storage_check.db.models.get(source_lower)
-            if model_class:
-                src_cfg = storage_check.db.config_loader.get_source_config(source)
-                id_field = src_cfg.get('id_field')
-                if id_field:
-                    def _db_exists():
-                        session = storage_check.db.Session()
-                        try:
-                            return session.query(model_class).filter(
-                                getattr(model_class, id_field) == compare_id
-                            ).first() is not None
-                        finally:
-                            session.close()
-                    if await asyncio.to_thread(_db_exists):
-                        logger.info(f"⏭️ 跳过(已存在): {file_name}")
-                        return {
-                            **state,
-                            'source': source,
-                            'extracted_data': {},
-                            'extracted_subtable_data': None,
-                            'extraction_confidence': 0.0,
-                            'final_status': 'skipped',
-                        }
-        except Exception as e:
-            logger.debug(f"去重检查失败，继续处理: {e}")
+        if not dry_run:
+            try:
+                from agent.storage import StorageAgent
+                storage_check = config.get('_storage') or StorageAgent(config, None)
+                model_class = storage_check.db.models.get(source_lower)
+                if model_class:
+                    src_cfg = storage_check.db.config_loader.get_source_config(source)
+                    id_field = src_cfg.get('id_field')
+                    if id_field:
+                        def _db_exists():
+                            session = storage_check.db.Session()
+                            try:
+                                return session.query(model_class).filter(
+                                    getattr(model_class, id_field) == compare_id
+                                ).first() is not None
+                            finally:
+                                session.close()
+                        if await asyncio.to_thread(_db_exists):
+                            logger.info(f"⏭️ 跳过(已存在): {file_name}")
+                            return {
+                                **state,
+                                'source': source,
+                                'extracted_data': {},
+                                'extracted_subtable_data': None,
+                                'extraction_confidence': 0.0,
+                                'final_status': 'skipped',
+                            }
+            except Exception as e:
+                logger.debug(f"去重检查失败，继续处理: {e}")
 
         if source_lower not in extractor.extractors:
             raise ValueError(f"No extractor found for source: {source}")
@@ -192,7 +195,7 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
         from agent.cleaner_validator import CleanerValidatorAgent
 
         if not state.get('extracted_data'):
-            logger.warning(f"🧹 清洗跳过: 无提取数据")
+            logger.warning("🧹 清洗跳过: 无提取数据")
             return {**state, 'quality_score': 0.0, 'final_status': 'failed'}
 
         file_name = Path(state['file_path']).name
@@ -313,6 +316,18 @@ async def store_node(state: VulnProcessingState, config: Dict) -> VulnProcessing
                 'stored': False, 'storage_status': 'skipped',
                 'final_status': 'failed',
                 'errors': state.get('errors', []) + ['No cleaned data to store'],
+            }
+
+        if config.get('processing', {}).get('dry_run', False):
+            return {
+                **state,
+                'stored': False,
+                'storage_status': 'dry_run',
+                'final_status': 'success',
+                'end_time': time.time(),
+                'trace_events': append_trace_event(
+                    state, 'store', 'dry_run', decision='PASS'
+                ),
             }
 
         storage = config.get('_storage') or StorageAgent(config, None)

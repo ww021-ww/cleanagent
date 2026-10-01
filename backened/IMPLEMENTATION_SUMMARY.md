@@ -158,3 +158,19 @@ C/I/A: N→None, P→Partial, C→Complete
 - 只有验证通过且重新计算后的质量分达到阈值才进入 Store；否则在预算内重新规划，预算耗尽后进入 LowQuality。
 - 默认关闭新循环，原有 `rule → hybrid → llm_full` 路径保持兼容；开启后旧的自由字段补全旁路自动停用。
 
+### Dry Run 与 A/B 验证
+
+单文件试跑且不写 MySQL/Milvus：
+
+```bash
+python main.py --file sample.json --agent-recovery --dry-run
+```
+
+同一批样本对比旧恢复链路与 Agent Loop：
+
+```bash
+python recovery_ab.py --directory tests/fixtures --pattern "*.json" --output recovery-ab.json
+```
+
+A/B 报告包含成功率、异常恢复率、未验证恢复代理指标、平均质量分、LLM/工具调用数、平均 step 和耗时。`unverified_recoveries` 仅表示异常样本通过但没有 accepted Verification，并不等同于已确认的错误字段。
+

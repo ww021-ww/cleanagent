@@ -39,6 +39,7 @@ class LangGraphController:
         """
         self.config = config
         agentic = config.get('agentic', {})
+        dry_run = config.get('processing', {}).get('dry_run', False)
 
         # AgentMemory
         memory_cfg = agentic.get('memory', {})
@@ -48,7 +49,7 @@ class LangGraphController:
             self.memory = None
 
         # RAGRetriever (Milvus)
-        if agentic.get('rag', {}).get('enabled', False):
+        if agentic.get('rag', {}).get('enabled', False) and not dry_run:
             from rag import RAGRetriever
             self.rag = _init_optional(RAGRetriever, config, label='RAGRetriever')
         else:
@@ -112,7 +113,9 @@ class LangGraphController:
         from agent.cleaner_validator import CleanerValidatorAgent
         _shared_cfg = {**config, '_memory': self.memory, '_rag': self.rag,
                        '_tool_agent': self.tool_agent, '_skill_registry': self.skill_registry}
-        self.storage_agent  = _init_optional(StorageAgent,            _shared_cfg, None, label='StorageAgent')
+        self.storage_agent = None if dry_run else _init_optional(
+            StorageAgent, _shared_cfg, None, label='StorageAgent'
+        )
         self.extractor_agent = _init_optional(ExtractorAgent,         _shared_cfg, None, label='ExtractorAgent')
         self.cleaner_agent   = _init_optional(CleanerValidatorAgent,  _shared_cfg, None, label='CleanerAgent')
 

@@ -145,14 +145,14 @@ class SlowRegistry(RecoveryToolRegistry):
 
 class SlowPlanner:
     def plan(self, context):
-        time.sleep(0.05)
+        time.sleep(0.2)
         return RecoveryDecision(decision="ABORT", reason_code="too_late")
 
 
 def test_planner_is_bounded_by_recovery_deadline():
     cfg = config(planner=SlowPlanner())
     state = recovery_state()
-    state["deadline_at"] = time.time() + 0.01
+    state["deadline_at"] = time.time() + 0.1
 
     state = asyncio.run(plan_recovery_node(state, cfg))
 
