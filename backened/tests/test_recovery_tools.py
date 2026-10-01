@@ -94,6 +94,16 @@ def test_nvd_lookup_uses_injected_official_client_and_filters_fields():
     assert result.source_name == "NVD"
     assert result.source_url.endswith("CVE-2026-1234")
 
+    aliased = registry.invoke(
+        "nvd_lookup",
+        {
+            "cve_id": "CVE-2026-1234",
+            "target_fields": ["descriptions_value"],
+        },
+        {"source": "NVD"},
+    )
+    assert aliased.data == {"descriptions_value": "Official description"}
+
 
 def test_registry_bounds_string_data_before_it_enters_graph_state():
     registry = RecoveryToolRegistry(

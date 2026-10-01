@@ -29,7 +29,7 @@ class EvidenceVerifier:
             return self._rejected("evidence_missing", action.target_fields)
 
         patches: List[FieldPatch] = []
-        review = False
+        review = action.tool_name == "search_raw_text"
         for field in action.target_fields:
             if field not in result.data or result.data[field] in (None, ""):
                 continue
@@ -53,7 +53,11 @@ class EvidenceVerifier:
                     evidence=result.evidence,
                     evidence_location=result.evidence_location,
                     confidence=1.0 if authoritative else 0.9,
-                    verification_status="review" if conflicts else "accepted",
+                    verification_status=(
+                        "review"
+                        if conflicts or action.tool_name == "search_raw_text"
+                        else "accepted"
+                    ),
                 )
             )
 
@@ -61,7 +65,11 @@ class EvidenceVerifier:
             return self._rejected("target_value_missing", action.target_fields)
         return VerificationResult(
             status="review" if review else "accepted",
-            reason_code="authoritative_conflict" if review else "evidence_supported",
+            reason_code=(
+                "raw_text_requires_review"
+                if action.tool_name == "search_raw_text"
+                else "authoritative_conflict" if review else "evidence_supported"
+            ),
             accepted_patches=patches,
             rejected_fields=[],
         )

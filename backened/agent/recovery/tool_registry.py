@@ -13,6 +13,22 @@ from tools.builtin import nvd_lookup
 from .models import StrictModel, ToolResult, ToolSpec
 
 
+DESCRIPTION_FIELDS = [
+    "description",
+    "descriptions_value",
+    "containers_cna_descriptions_value",
+    "shortDescription",
+    "overview",
+    "clean_desc",
+]
+NVD_FIELD_ALIASES = {
+    **{field: "description" for field in DESCRIPTION_FIELDS},
+    "cvss_score": "cvss_score",
+    "published": "published",
+    "references": "references",
+}
+
+
 class SearchRawTextArgs(StrictModel):
     field_hint: str
     keywords: List[str] = Field(default_factory=list)
@@ -60,9 +76,11 @@ class RecoveryToolRegistry:
 
     def describe_allowed(self, context: Dict[str, Any]) -> List[ToolSpec]:
         local_fields = [
-            "title", "description", "overview", "impact", "solutions",
+            "title", *DESCRIPTION_FIELDS, "impact", "solutions",
             "affected_products", "affected_versions", "repair_suggestion",
         ]
+        source = str(context.get("source", "")).lower()
+        nvd_fields = list(NVD_FIELD_ALIASES) if source in {"", "cve", "nvd"} else []
         descriptions = {
             "search_raw_text": "Locate evidence in the current input text",
             "parse_json_path": "Read one value from the current JSON input",
@@ -73,9 +91,7 @@ class RecoveryToolRegistry:
             "search_raw_text": local_fields,
             "parse_json_path": local_fields,
             "normalize_field": ["*"],
-            "nvd_lookup": [
-                "cve_id", "description", "cvss_score", "published", "references"
-            ],
+            "nvd_lookup": nvd_fields,
         }
         return [
             ToolSpec(
@@ -200,9 +216,9 @@ class RecoveryToolRegistry:
         if not record:
             raise ValueError("nvd_not_found")
         data = {
-            field: record[field]
+            field: record[NVD_FIELD_ALIASES.get(field, field)]
             for field in args["target_fields"]
-            if record.get(field) is not None
+            if record.get(NVD_FIELD_ALIASES.get(field, field)) is not None
         }
         if not data:
             raise ValueError("requested_fields_not_found")

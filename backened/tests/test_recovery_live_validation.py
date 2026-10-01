@@ -16,6 +16,9 @@ class SourceExtractor:
     def calculate_confidence(self, data):
         return 0.8
 
+    def extract_by_strategy(self, content, strategy, file_path, rag_context):
+        return self.extract(content, file_path)
+
 
 class ExtractorConfig:
     def has_subtable(self, source):
@@ -90,6 +93,24 @@ def test_dry_run_extract_skips_database_deduplication():
 
     assert storage.db_reads == 0
     assert result["extracted_data"]["cve_id"] == "CVE-2026-1234"
+
+
+def test_llm_full_extraction_counts_its_llm_call():
+    sample = Path(__file__).parent / "fixtures" / "recovery_cases.json"
+    state = create_initial_state("task-1", str(sample))
+    state["extraction_strategy"] = "llm_full"
+
+    result = asyncio.run(
+        extract_node(
+            state,
+            {
+                "processing": {"dry_run": True},
+                "_extractor": FakeExtractor(),
+            },
+        )
+    )
+
+    assert result["llm_call_count"] == 1
 
 
 def test_dry_run_store_returns_candidate_without_database_or_rag_writes():

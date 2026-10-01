@@ -53,6 +53,16 @@ def test_guard_authorizes_only_schema_valid_allowed_action():
         target_fields=["description"],
     )
 
+    source_field = decision(
+        "search_raw_text",
+        ["descriptions_value"],
+        {"field_hint": "descriptions_value", "keywords": ["description"]},
+    )
+    source_result = guard.authorize(
+        source_field, state(source="NVD"), registry
+    )
+    assert isinstance(source_result, AuthorizedAction)
+
 
 def test_guard_rejects_unknown_tool_bad_args_exhausted_budget_and_field_escape():
     registry = RecoveryToolRegistry()
@@ -124,7 +134,7 @@ class FakeFieldConfig:
         return "cve_id"
 
 
-def test_verifier_accepts_evidence_backed_b_field_without_mutating_candidate():
+def test_verifier_routes_raw_text_patch_to_review_without_mutating_candidate():
     verifier = EvidenceVerifier(FakeFieldConfig())
     candidate = {"cve_id": "CVE-2026-1234", "description": None}
     original = deepcopy(candidate)
@@ -144,9 +154,10 @@ def test_verifier_accepts_evidence_backed_b_field_without_mutating_candidate():
 
     verification = verifier.verify(candidate, action, result, "CVE")
 
-    assert verification.status == "accepted"
+    assert verification.status == "review"
     assert verification.accepted_patches[0].field == "description"
     assert verification.accepted_patches[0].proposed_value == "Validated description"
+    assert verification.accepted_patches[0].verification_status == "review"
     assert candidate == original
 
 

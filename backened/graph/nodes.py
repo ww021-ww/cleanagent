@@ -23,6 +23,7 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
     策略读取项: state.extraction_strategy > memory推荐 > 默认 rule
     使用 config['_extractor'] / config['_storage'] 复用已初始化的 Agent 实例。
     """
+    llm_call_count = state.get('llm_call_count', 0)
     try:
         from agent.extractor import ExtractorAgent
 
@@ -110,6 +111,7 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
         if strategy == 'llm_full':
             # 全量 LLM 重提取（反思机制最终兜底）
             logger.info(f"📄 LLM全量提取: {file_name} (策略=llm_full)")
+            llm_call_count += 1
             extracted_list = await asyncio.to_thread(
                 source_extractor.extract_by_strategy,
                 content, 'llm_full', state['file_path'], rag_context
@@ -131,6 +133,7 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
                 'extracted_subtable_data': None,
                 'extraction_confidence': 0.0,
                 'errors': state.get('errors', []) + ['No data extracted'],
+                'llm_call_count': llm_call_count,
                 'final_status': 'failed'
             }
 
@@ -171,6 +174,7 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
             'is_multi_vuln': len(extracted_list) > 1,
             'vuln_count': len(extracted_list),
             'errors': [],
+            'llm_call_count': llm_call_count,
         }
 
     except Exception as e:
@@ -180,6 +184,7 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
             **state,
             'errors': state.get('errors', []) + [f"Extraction error: {str(e)}"],
             'retry_count': state.get('retry_count', 0) + 1,
+            'llm_call_count': llm_call_count,
             'final_status': 'failed',
         }
 
@@ -191,6 +196,7 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
     增强：当有必填字段缺失且未尝试过修复时，调用 LLM recover_fields()
     使用 config['_cleaner'] 复用已初始化的 CleanerValidatorAgent 实例。
     """
+    llm_call_count = state.get('llm_call_count', 0)
     try:
         from agent.cleaner_validator import CleanerValidatorAgent
 
@@ -221,6 +227,7 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
             and state.get('raw_content')
             and not recovery_attempted
         ):
+            llm_call_count += 1
             cleaned_data, recovered_fields = await asyncio.to_thread(
                 cleaner.recover_fields,
                 cleaned_data, validation_result, state['source'], state['raw_content']
@@ -284,6 +291,7 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
             'warnings': validation_result.get('warnings', []),
             'recovery_attempted': recovery_attempted,
             'recovered_fields': recovered_fields,
+            'llm_call_count': llm_call_count,
         }
 
     except Exception as e:
@@ -292,6 +300,7 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
         return {
             **state,
             'errors': state.get('errors', []) + [f"Cleaning error: {str(e)}"],
+            'llm_call_count': llm_call_count,
             'final_status': 'failed',
         }
 

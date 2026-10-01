@@ -174,6 +174,15 @@ python recovery_ab.py --directory tests/fixtures --pattern "*.json" --output rec
 
 A/B 报告包含成功率、异常恢复率、未验证恢复代理指标、平均质量分、LLM/工具调用数、平均 step 和耗时。`unverified_recoveries` 仅表示异常样本通过但没有 accepted Verification，并不等同于已确认的错误字段。
 
+六类真实来源的受控异常 Benchmark：
+
+```bash
+python recovery_benchmark.py --data-root . --env-file config/.env \
+  --cases-per-source 2 --workers 3 --output recovery-benchmark.json
+```
+
+该命令从 CVE/NVD/CNVD/CISA/CERT/JVN 各选一条真实样本，生成 ID-only 与空正文两类异常，分别统计异常识别率、核心字段恢复准确率、错误修改率、受保护字段丢失率、人工复核/终止率、LLM/工具调用量与耗时。原始样本只用于建立 ground truth，异常文件位于临时目录，整个流程强制 Dry Run。`deepseek-v4-pro` 的 Planner 调用关闭 Thinking 并强制选择白名单工具；原文片段只能进入人工复核，不能自动写入字段。
+
 ### 质量门槛
 
 `agentic.quality_gate` 与数据库字段的 `required` 约束分离：各来源的漏洞 ID 仍由 Schema 校验，描述类字段缺失会进入异常恢复，影响对象和修复信息缺失只扣分。质量完整度按配置的质量项计算，不再把“只返回一个且有值的 ID”计为 100% 完整。

@@ -110,7 +110,7 @@ def test_normal_record_and_disabled_loop_never_enter_agent_planner():
     assert planner.calls == 0
 
 
-def test_missing_description_recovers_through_guard_tool_and_verifier():
+def test_raw_text_evidence_routes_to_review_without_changing_description():
     planner = FakePlanner(
         RecoveryDecision(
             decision="CALL_TOOL",
@@ -131,10 +131,10 @@ def test_missing_description_recovers_through_guard_tool_and_verifier():
     state = decide_next_node(state, cfg)
 
     assert planner.calls == 1
-    assert state["cleaned_data"]["description"]
-    assert state["verification"]["status"] == "accepted"
-    assert state["final_decision"] == "PASS"
-    assert route_after_decision(state, cfg) == "store"
+    assert state["cleaned_data"]["description"] is None
+    assert state["verification"]["status"] == "review"
+    assert state["final_decision"] == "REVIEW"
+    assert route_after_decision(state, cfg) == "low_quality"
 
 
 class SlowRegistry(RecoveryToolRegistry):
@@ -295,6 +295,26 @@ def test_agent_loop_skips_legacy_unverified_field_recovery():
     assert cleaner.recovery_calls == 0
     assert tools.calls == 0
     assert not result["cleaned_data"].get("description")
+
+
+def test_legacy_hybrid_recovery_counts_its_llm_call():
+    cleaner = LegacyCleaner()
+    cfg = config()
+    cfg.update(_cleaner=cleaner, _tool_agent=None)
+    cfg["agentic"]["recovery"]["agent_loop_enabled"] = False
+    cfg["agentic"]["field_recovery"] = {"enabled": True}
+    state = create_initial_state("task-1", "sample.json")
+    state.update(
+        source="CVE",
+        raw_content="raw",
+        extracted_data={"cve_id": "CVE-2026-1234"},
+        extraction_strategy="hybrid",
+        extraction_confidence=0.8,
+    )
+
+    result = asyncio.run(clean_validate_node(state, cfg))
+
+    assert result["llm_call_count"] == 1
 
 
 def test_compiled_graph_contains_bounded_recovery_loop_nodes():

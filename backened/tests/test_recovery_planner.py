@@ -10,14 +10,19 @@ class FakeResponse:
 
 
 class FakeToolModel:
-    def __init__(self, tool_calls=None, error=None):
+    def __init__(self, tool_calls=None, error=None, model_name="deepseek-v4-pro"):
         self.tool_calls = tool_calls or []
         self.error = error
+        self.model_name = model_name
         self.bound_schemas = []
+        self.tool_choice = None
+        self.extra_body = None
         self.messages = []
 
-    def bind_tools(self, schemas):
+    def bind_tools(self, schemas, tool_choice=None, extra_body=None):
         self.bound_schemas = schemas
+        self.tool_choice = tool_choice
+        self.extra_body = extra_body
         return self
 
     def invoke(self, messages):
@@ -69,6 +74,8 @@ def test_planner_maps_one_allowed_tool_call_to_structured_decision():
     assert result.tool_name == "search_raw_text"
     assert result.target_fields == ["description"]
     assert result.reason_code == "tool_selected"
+    assert model.tool_choice == "required"
+    assert model.extra_body == {"thinking": {"type": "disabled"}}
     assert [schema["function"]["name"] for schema in model.bound_schemas] == [
         "search_raw_text",
         "parse_json_path",
@@ -95,6 +102,14 @@ def test_planner_maps_control_call_without_exposing_free_form_execution():
     assert result.decision == "REVIEW"
     assert result.reason_code == "authority_conflict"
     assert result.tool_name is None
+
+
+def test_planner_only_sends_deepseek_thinking_switch_to_deepseek_v4():
+    model = FakeToolModel([], model_name="gpt-4o-mini")
+
+    ConstrainedRecoveryPlanner(model, RecoveryToolRegistry())
+
+    assert model.extra_body is None
 
 
 def test_planner_safely_stops_on_missing_unknown_or_invalid_tool_calls():

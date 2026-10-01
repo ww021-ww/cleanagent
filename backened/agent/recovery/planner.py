@@ -18,7 +18,14 @@ class ConstrainedRecoveryPlanner:
     def __init__(self, llm, registry: RecoveryToolRegistry):
         self.registry = registry
         self.schemas = self._tool_schemas()
-        self.model = llm.bind_tools(self.schemas) if llm else None
+        bind_kwargs = {"tool_choice": "required"}
+        model_name = str(getattr(llm, "model_name", "")) if llm else ""
+        if model_name.startswith("deepseek-v4"):
+            bind_kwargs["extra_body"] = {"thinking": {"type": "disabled"}}
+        self.model = (
+            llm.bind_tools(self.schemas, **bind_kwargs)
+            if llm else None
+        )
 
     def plan(self, context: Dict[str, Any]) -> RecoveryDecision:
         if not self.model:
