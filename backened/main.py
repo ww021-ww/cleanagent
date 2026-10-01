@@ -125,7 +125,7 @@ async def main():
             await run(LangGraphController(config))
         else:
             checkpoint_path = config.get('processing', {}).get(
-                'checkpoint_db', 'logs/langgraph_checkpoints.sqlite'
+                'checkpoint_db', 'logs/processing_state.db'
             )
             async with open_checkpointer(checkpoint_path) as checkpointer:
                 await run(LangGraphController(config, checkpointer=checkpointer))

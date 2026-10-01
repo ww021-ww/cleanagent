@@ -4,7 +4,7 @@ RAG Retriever — 漏洞知识库检索器
 """
 import os
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from rag.embeddings import OllamaEmbedding
 

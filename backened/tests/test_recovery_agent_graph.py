@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 
 from agent.recovery.guard import RecoveryActionGuard
@@ -31,9 +32,11 @@ class FakePlanner:
     def __init__(self, result):
         self.result = result
         self.calls = 0
+        self.last_context = None
 
     def plan(self, context):
         self.calls += 1
+        self.last_context = context
         return self.result
 
 
@@ -132,6 +135,22 @@ def test_raw_text_evidence_routes_to_review_without_changing_description():
     assert state["verification"]["status"] == "review"
     assert state["final_decision"] == "REVIEW"
     assert route_after_decision(state, cfg) == "prepare_review"
+
+
+def test_planner_receives_bounded_json_evidence_paths_without_values():
+    planner = FakePlanner(RecoveryDecision(decision="STOP", reason_code="done"))
+    cfg = config(planner=planner)
+    state = recovery_state()
+    state["raw_content"] = json.dumps(
+        {"recovery_evidence": {"description": "SECRET_EVIDENCE"}}
+    )
+
+    asyncio.run(plan_recovery_node(state, cfg))
+
+    assert planner.last_context["candidate_json_paths"] == [
+        "recovery_evidence.description"
+    ]
+    assert "SECRET_EVIDENCE" not in str(planner.last_context)
 
 
 class SlowRegistry(RecoveryToolRegistry):

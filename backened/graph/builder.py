@@ -52,7 +52,8 @@ def route_after_extract(state: VulnProcessingState, config: Dict) -> str:
 
 def route_after_clean(state: VulnProcessingState, config: Dict) -> str:
     quality_threshold = config.get('agents', {}).get('cleaner_validator', {}).get('quality_threshold', 0.7)
-    if state.get('quality_score', 0.0) >= quality_threshold:
+    validation_passed = (state.get('validation_result') or {}).get('is_valid', True)
+    if validation_passed and state.get('quality_score', 0.0) >= quality_threshold:
         return 'store'
     if not config.get('agentic', {}).get('recovery', {}).get('enabled', False):
         return 'low_quality'

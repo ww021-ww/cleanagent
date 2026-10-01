@@ -1,9 +1,11 @@
 import asyncio
 import json
+from pathlib import Path
 
 import pytest
 
 import recovery_benchmark
+from config import FieldConfigLoader, load_yaml_config
 from recovery_ab import build_variant_config, compare_results
 from recovery_benchmark import (
     case_is_auto_recoverable,
@@ -13,6 +15,40 @@ from recovery_benchmark import (
     score_result,
     summarize_scores,
 )
+
+
+def test_specialized_json_extractors_expose_benchmark_evidence_paths():
+    fields = FieldConfigLoader(
+        str(Path(__file__).parents[1] / "config" / "field_mappings.yaml")
+    )
+
+    assert recovery_benchmark._json_path(fields, "NVD", "descriptions_value") == (
+        "descriptions[0].value"
+    )
+    assert recovery_benchmark._json_path(fields, "CISA", "shortDescription") == (
+        "vulnerabilities[0].shortDescription"
+    )
+    assert recovery_benchmark._json_path(fields, "CERT", "overview") == "overview"
+
+
+def test_required_any_group_uses_one_canonical_benchmark_field():
+    config = {
+        "agentic": {
+            "quality_gate": {
+                "profiles": {
+                    "cert": {
+                        "required_any": {
+                            "description": ["overview", "clean_desc"],
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    assert recovery_benchmark._description_fields(
+        config, "CERT", {"overview": "full", "clean_desc": "derived"}
+    ) == ["overview"]
 
 
 def test_benchmark_rejects_missing_llm_credentials():
@@ -40,6 +76,63 @@ def test_layout_drift_keeps_exact_evidence_at_recovery_json_path(tmp_path):
     assert payload["recovery_evidence"]["description"] == " exact  verified text "
 
 
+def test_layout_drift_uses_stable_description_evidence_key(tmp_path):
+    original = tmp_path / "CVE-2026-1234.json"
+    original.write_text(
+        json.dumps({"containers": {"cna": {"descriptions": [{"value": "verified"}]}}}),
+        encoding="utf-8",
+    )
+
+    mutated = create_anomaly_file(
+        original,
+        tmp_path / "cases",
+        "CVE",
+        "layout_drift",
+        target_field="containers_cna_descriptions_value",
+        source_json_path="containers.cna.descriptions[0].value",
+    )
+
+    payload = json.loads(mutated.read_text(encoding="utf-8"))
+    assert payload["recovery_evidence"] == {"description": "verified"}
+
+
+def test_layout_drift_can_preserve_the_canonical_extracted_value(tmp_path):
+    original = tmp_path / "cert.json"
+    original.write_text(
+        json.dumps({"overview": "### Overview\nsummary\n### Impact\ndetails"}),
+        encoding="utf-8",
+    )
+
+    mutated = create_anomaly_file(
+        original,
+        tmp_path / "cases",
+        "CERT",
+        "layout_drift",
+        target_field="overview",
+        source_json_path="overview",
+        evidence_value="summary",
+    )
+
+    payload = json.loads(mutated.read_text(encoding="utf-8"))
+    assert payload["recovery_evidence"] == {"description": "summary"}
+
+
+def test_html_missing_evidence_preserves_jvn_identifier(tmp_path):
+    original = tmp_path / "sample.html"
+    original.write_text("<html>full advisory</html>", encoding="utf-8")
+
+    mutated = create_anomaly_file(
+        original,
+        tmp_path / "cases",
+        "JVN",
+        "missing_evidence",
+        target_field="description",
+        identifier="CPNI-072928",
+    )
+
+    assert 'class="h1ver2">CPNI-072928<' in mutated.read_text(encoding="utf-8")
+
+
 def test_missing_evidence_contains_no_recoverable_description(tmp_path):
     original = tmp_path / "CVE-2026-1234.json"
     original.write_text(
@@ -56,6 +149,45 @@ def test_missing_evidence_contains_no_recoverable_description(tmp_path):
     )
 
     assert "secret evidence" not in mutated.read_text(encoding="utf-8")
+
+
+def test_cisa_missing_evidence_is_blocked_by_rule_baseline(tmp_path):
+    original = tmp_path / "cisa" / "kev.json"
+    original.parent.mkdir()
+    original.write_text(
+        json.dumps(
+            {
+                "vulnerabilities": [
+                    {
+                        "cveID": "CVE-2026-1234",
+                        "vendorProject": "Vendor",
+                        "product": "Product",
+                        "shortDescription": "verified description",
+                        "requiredAction": "apply update",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    mutated = create_anomaly_file(
+        original,
+        tmp_path / "cases",
+        "CISA",
+        "missing_evidence",
+        target_field="shortDescription",
+        source_json_path="vulnerabilities[0].shortDescription",
+        identifier="CVE-2026-1234",
+    )
+
+    config = load_yaml_config(str(Path(__file__).parents[1] / "config" / "agent_config.yaml"))
+    results, _ = asyncio.run(
+        recovery_benchmark._process(
+            [mutated], recovery_benchmark._benchmark_config(config, False), workers=1
+        )
+    )
+
+    assert results[0]["final_status"] != "success"
 
 
 def test_score_separates_recoverable_accuracy_from_safe_block_rate():
@@ -91,6 +223,8 @@ def test_score_separates_recoverable_accuracy_from_safe_block_rate():
     assert summary["safe_block_rate"] == 1.0
     assert summary["false_modification_rate"] == 0.0
     assert summary["protected_id_preservation_rate"] == 1.0
+    assert recovered["outcome"] == "success"
+    assert safely_blocked["outcome"] == "review_pending"
 
 
 def test_html_only_source_is_reported_as_not_auto_recoverable():

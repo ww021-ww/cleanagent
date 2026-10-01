@@ -304,3 +304,40 @@ ENABLE_ENRICHMENT=true
 - 查看设计方案：`FIELD_MAPPING_DESIGN_V2.md`
 - 运行测试：`python multiagent/test_system.py`
 - 查看示例：`multiagent/config/.env.example`
+
+## HIL 审核与 Milvus Outbox
+
+设置 `HIL_REVIEW_TOKEN`，并确保 `processing.checkpoint_db` 指向可写的
+`logs/processing_state.db`。审核任务使用 `task_id` 从 LangGraph Checkpoint
+恢复，所以该文件不能在待审核任务完成前删除。
+
+```powershell
+$token = $env:HIL_REVIEW_TOKEN
+curl.exe "http://localhost:8000/api/v1/reviews?status=pending"
+curl.exe -X POST "http://localhost:8000/api/v1/reviews/<task_id>/approve" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"reviewer":"wangchuang","note":"verified","corrected_fields":{"description":"verified text"}}'
+curl.exe -X POST "http://localhost:8000/api/v1/reviews/<task_id>/reject" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"reviewer":"wangchuang","note":"insufficient evidence"}'
+```
+
+MySQL 是事实库。业务写入与 `vector_index_outbox` 任务在同一个 MySQL
+事务中提交，Milvus 由单进程 Worker 异步更新：
+
+```bash
+python -m workers.vector_index_worker --once
+python -m workers.vector_index_worker
+```
+
+Outbox 状态为 `pending → processing → succeeded`。失败时按指数退避回到
+`pending`，超过 `max_attempts` 后标记 `failed`；超过 lease 的 `processing`
+任务会被重新领取。当前边界是单主机、单 Worker，数据量增长到需要多
+Worker 时再引入更强的队列和锁机制。
+
+## 恢复 Benchmark
+
+```bash
+python recovery_benchmark.py --data-root . --env-file config/.env \
+  --cases-per-source 2 --workers 3 --output recovery-benchmark.json
+```
+
+Benchmark 使用六类真实样本构造可恢复布局偏移与无证据缺失。关注可恢复字段准确
+率、安全拦截率、错误修改率和受保护 ID 保持率；运行期间强制 Dry Run，
+不写 MySQL、Milvus、审核表或持久化 Checkpoint。

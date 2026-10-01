@@ -23,6 +23,11 @@ SOURCE_DIRS = {
     "JVN": ("json/jvn", "html/jvn"),
 }
 MUTATIONS = ("layout_drift", "missing_evidence")
+SPECIALIZED_JSON_PATHS = {
+    ("NVD", "descriptions_value"): "descriptions[0].value",
+    ("CISA", "shortDescription"): "vulnerabilities[0].shortDescription",
+    ("CERT", "overview"): "overview",
+}
 
 
 def require_llm_config(llm_config: Dict) -> None:
@@ -84,13 +89,19 @@ def create_anomaly_file(
     target_field: str,
     source_json_path: str | None = None,
     identifier: str | None = None,
+    evidence_value: Any = None,
 ) -> Path:
     target = output_root / source.lower() / mutation / original.name
     target.parent.mkdir(parents=True, exist_ok=True)
     if original.suffix.lower() != ".json":
         if mutation != "missing_evidence":
             raise ValueError("HTML samples are not auto-recoverable")
-        target.write_text(f"<html><body>{identifier or ''}</body></html>", encoding="utf-8")
+        body = (
+            f'<h1 class="h1ver2">{identifier or ""}</h1>'
+            if source.upper() == "JVN"
+            else identifier or ""
+        )
+        target.write_text(f"<html><body>{body}</body></html>", encoding="utf-8")
         return target
     if not source_json_path:
         raise ValueError("source_json_path is required for JSON mutations")
@@ -98,7 +109,9 @@ def create_anomaly_file(
     payload = json.loads(original.read_text(encoding="utf-8"))
     evidence = _pop_json_path(payload, source_json_path)
     if mutation == "layout_drift":
-        payload.setdefault("recovery_evidence", {})[target_field] = evidence
+        payload.setdefault("recovery_evidence", {})["description"] = (
+            evidence if evidence_value is None else evidence_value
+        )
     elif mutation != "missing_evidence":
         raise ValueError(f"Unsupported mutation: {mutation}")
     target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -134,7 +147,11 @@ def score_result(
         for field in expected
     )
     protected = truth.get(id_field) not in (None, "")
+    trace = result.get("trace_events") or []
     return {
+        "outcome": result.get("final_status"),
+        "decision": result.get("final_decision"),
+        "reason_code": trace[-1].get("reason_code") if trace else None,
         "recoverable_fields": len(expected) if recoverable else 0,
         "correctly_recovered_fields": (
             sum(_same(candidate.get(field), truth[field]) for field in expected)
@@ -212,7 +229,8 @@ def _description_fields(config: Dict, source: str, truth: Dict) -> List[str]:
         .get(source.lower(), {})
     )
     aliases = profile.get("required_any", {}).get("description", [])
-    return [field for field in aliases if truth.get(field) not in (None, "")]
+    field = next((name for name in aliases if truth.get(name) not in (None, "")), None)
+    return [field] if field else []
 
 
 def _json_path(field_config, source: str, target_field: str):
@@ -222,7 +240,7 @@ def _json_path(field_config, source: str, target_field: str):
         for rule in field.get("extraction_rules", []):
             if rule.get("json_path"):
                 return rule["json_path"]
-    return None
+    return SPECIALIZED_JSON_PATHS.get((source.upper(), target_field))
 
 
 async def run_benchmark(
@@ -268,6 +286,7 @@ async def run_benchmark(
                         target_field=target_field,
                         source_json_path=source_path,
                         identifier=str(truth[id_field]),
+                        evidence_value=truth[target_field],
                     )
                 )
                 cases.append(

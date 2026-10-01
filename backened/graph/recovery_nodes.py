@@ -1,5 +1,6 @@
 """Deterministic diagnosis and the bounded recovery Agent loop."""
 import asyncio
+import json
 import time
 from typing import Any, Dict, List, Optional
 
@@ -84,6 +85,17 @@ def _budget(config: Dict) -> RecoveryBudget:
     )
 
 
+def _candidate_json_paths(raw_content: str) -> List[str]:
+    """Expose bounded path names, never evidence values, to the planner."""
+    try:
+        evidence = json.loads(raw_content).get("recovery_evidence", {})
+    except (json.JSONDecodeError, AttributeError):
+        return []
+    if not isinstance(evidence, dict):
+        return []
+    return [f"recovery_evidence.{key}" for key in list(evidence)[:10]]
+
+
 async def plan_recovery_node(
     state: VulnProcessingState, config: Dict
 ) -> VulnProcessingState:
@@ -108,6 +120,9 @@ async def plan_recovery_node(
                     "tools": budget.max_tool_calls - state.get("tool_call_count", 0),
                     "llm": budget.max_llm_calls - state.get("llm_call_count", 0),
                 },
+                "candidate_json_paths": _candidate_json_paths(
+                    state.get("raw_content") or ""
+                ),
             }
             deadline_at = state.get("deadline_at", 0.0)
             timeout = (

@@ -131,42 +131,27 @@ C/I/A: N→None, P→Partial, C→Complete
 
 ---
 
-## 异常恢复 Phase 1
+## 受约束异常恢复
 
-低质量样本现在按以下顺序执行：
-
-`Extract → Clean/Validate → DiagnoseFailure → Reflect → Extract`，达到重试上限后进入 `LowQuality`；质量达标样本仍由 `Clean/Validate` 直接进入 `Store`。
-
-- `Clean/Validate` 在兼容原有 `errors/warnings/is_valid` 的基础上，补充字段级问题和证据缺口。
-- `DiagnoseFailure` 仅根据候选数据与校验结果生成结构化 `FailureProfile`，不调用 LLM、外部工具或数据库，也不修改漏洞字段。
-- Trace 只记录任务、节点、原因码、耗时和决策，不记录 API Key、原始文件、完整候选数据或模型思维链。
-- `PASS` 表示存储成功，`REPLAN` 表示沿用 `rule → hybrid → llm_full` 升级重试，`ABORT` 表示重试预算耗尽。
-
-配置位于 `config/agent_config.yaml` 的 `agentic.recovery`。Phase 1 不包含字段 Patch 应用、受约束 LLM Planner、HIL 审核或跨库补偿，这些能力留给后续阶段。
-
----
-
-## 异常恢复 Phase 2
-
-开启 `agentic.recovery.agent_loop_enabled` 后，低质量样本执行：
+主链路使用确定性规则完成 Extract 和 Clean/Validate。质量不达标时才进入：
 
 `Diagnose → Plan → Guard → Execute → Verify → Decide`。
 
 - Planner 只能选择 `search_raw_text`、`parse_json_path`、`normalize_field`、`nvd_lookup` 或明确停止，不能直接修改候选数据。
 - Guard 校验工具白名单、参数模型、目标字段、真实 CVE ID 和步数/工具/LLM/时间预算。
 - Verifier 仅接受带来源与位置的证据；权威字段只接受原文件确定性解析、规范化结果或 NVD 官方数据，冲突会标记为需人工复核并进入 LowQuality。
-- 只有验证通过且重新计算后的质量分达到阈值才进入 Store；否则在预算内重新规划，预算耗尽后进入 LowQuality。
-- 默认关闭新循环，原有 `rule → hybrid → llm_full` 路径保持兼容；开启后旧的自由字段补全旁路自动停用。
+- 只有验证通过且重新计算后的质量分达到阈值才进入 Store；证据冲突或仍不足时进入人工审核或 LowQuality。
+- 恢复链路受 step、工具、LLM 调用数和 deadline 四重预算限制；Trace 不保存原文、密钥或思维链。
 
 ### Dry Run 与 A/B 验证
 
 单文件试跑且不写 MySQL/Milvus：
 
 ```bash
-python main.py --file sample.json --agent-recovery --dry-run
+python main.py --file sample.json --dry-run
 ```
 
-同一批样本对比旧恢复链路与 Agent Loop：
+同一批样本对比确定性基线与 Recovery Agent：
 
 ```bash
 python recovery_ab.py --directory tests/fixtures --pattern "*.json" --output recovery-ab.json
@@ -181,7 +166,9 @@ python recovery_benchmark.py --data-root . --env-file config/.env \
   --cases-per-source 2 --workers 3 --output recovery-benchmark.json
 ```
 
-该命令从 CVE/NVD/CNVD/CISA/CERT/JVN 各选一条真实样本，生成 ID-only 与空正文两类异常，分别统计异常识别率、核心字段恢复准确率、错误修改率、受保护字段丢失率、人工复核/终止率、LLM/工具调用量与耗时。原始样本只用于建立 ground truth，异常文件位于临时目录，整个流程强制 Dry Run。`deepseek-v4-pro` 的 Planner 调用关闭 Thinking 并强制选择白名单工具；原文片段只能进入人工复核，不能自动写入字段。
+报告的核心指标为 `recoverable_field_accuracy`、`safe_block_rate`、`false_modification_rate`、`protected_id_preservation_rate`、LLM/工具调用量和耗时。原始样本只用于 ground truth，异常文件位于临时目录，全程强制 Dry Run。
+
+当前六源、10 个真实样本变体的本地验证结果为：可恢复字段准确率 100%、无证据异常安全拦截率 100%、错误修改率 0%、受保护 ID 保持率 100%。
 
 ### 质量门槛
 

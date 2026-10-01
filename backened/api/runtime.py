@@ -17,7 +17,7 @@ class ProcessingRuntime:
 @asynccontextmanager
 async def open_processing_runtime(config):
     checkpoint_path = config.get("processing", {}).get(
-        "checkpoint_db", "logs/langgraph_checkpoints.sqlite"
+        "checkpoint_db", "logs/processing_state.db"
     )
     async with open_checkpointer(checkpoint_path) as checkpointer:
         controller = LangGraphController(config, checkpointer=checkpointer)

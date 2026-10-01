@@ -20,11 +20,20 @@ def base_config():
 
 
 def test_quality_routes_normal_records_to_store_and_anomalies_to_diagnosis():
-    assert route_after_clean({"quality_score": 0.5}, base_config()) == "store"
+    assert route_after_clean(
+        {"quality_score": 0.5, "validation_result": {"is_valid": True}},
+        base_config(),
+    ) == "store"
     assert (
         route_after_clean({"quality_score": 0.49}, base_config())
         == "diagnose_failure"
     )
+
+
+def test_validation_error_cannot_be_hidden_by_a_high_quality_score():
+    state = {"quality_score": 0.9, "validation_result": {"is_valid": False}}
+
+    assert route_after_clean(state, base_config()) == "diagnose_failure"
 
 
 def test_diagnosed_anomaly_enters_constrained_recovery():

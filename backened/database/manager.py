@@ -11,7 +11,6 @@ try:
 except ImportError:
     from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.dialects.mysql import insert as mysql_insert
 
 from .reliability import ReliabilityStore, ReviewTask, VectorIndexOutbox
 
@@ -587,7 +586,7 @@ class DatabaseManager:
                 
                 total = session.query(model_class).count()
                 active = session.query(model_class).filter(
-                    model_class.is_deleted == False
+                    model_class.is_deleted.is_(False)
                 ).count()
                 
                 return {
@@ -604,7 +603,7 @@ class DatabaseManager:
                     if model_class:
                         total = session.query(model_class).count()
                         active = session.query(model_class).filter(
-                            model_class.is_deleted == False
+                            model_class.is_deleted.is_(False)
                         ).count()
                         all_stats[src] = {
                             'total': total,
