@@ -41,6 +41,18 @@ class VulnProcessingState(TypedDict):
     failure_profile: Optional[Dict]     # 结构化失败诊断
     trace_events: List[Dict]            # 安全审计轨迹（不记录原始内容）
 
+    # ========== 受约束恢复循环 ==========
+    recovery_decision: Optional[Dict]
+    pending_action: Optional[Dict]
+    observations: List[Dict]
+    proposed_patches: List[Dict]
+    verification: Optional[Dict]
+    final_decision: Optional[str]
+    step_count: int
+    tool_call_count: int
+    llm_call_count: int
+    deadline_at: float
+
     # ========== 错误处理 ==========
     errors: List[str]                  # 错误列表
     warnings: List[str]                # 警告列表
@@ -86,6 +98,16 @@ def create_initial_state(task_id: str, file_path: str) -> VulnProcessingState:
         recovered_fields=[],
         failure_profile=None,
         trace_events=[],
+        recovery_decision=None,
+        pending_action=None,
+        observations=[],
+        proposed_patches=[],
+        verification=None,
+        final_decision=None,
+        step_count=0,
+        tool_call_count=0,
+        llm_call_count=0,
+        deadline_at=0.0,
         errors=[],
         warnings=[],
         retry_count=0,

@@ -1,6 +1,7 @@
 """Strict data contracts shared by recovery nodes."""
 
-from typing import Any, List, Literal, Optional
+import time
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -74,3 +75,73 @@ class TraceEvent(StrictModel):
     token_usage: int = Field(default=0, ge=0)
     error: Optional[str] = None
     decision: Optional[str] = None
+
+
+class RecoveryDecision(StrictModel):
+    decision: Literal["CALL_TOOL", "STOP", "REVIEW", "ABORT"]
+    reason_code: str
+    target_fields: List[str] = Field(default_factory=list)
+    tool_name: Optional[str] = None
+    tool_args: Dict[str, Any] = Field(default_factory=dict)
+    expected_evidence: str = ""
+
+
+class ToolSpec(StrictModel):
+    name: str
+    description: str
+    args_schema: Dict[str, Any]
+    allowed_fields: List[str] = Field(default_factory=list)
+    external: bool = False
+
+
+class ToolResult(StrictModel):
+    success: bool
+    tool_name: str
+    data: Dict[str, Any] = Field(default_factory=dict)
+    evidence: Optional[str] = None
+    source_name: Optional[str] = None
+    source_url: Optional[str] = None
+    evidence_location: Optional[str] = None
+    latency_ms: float = Field(default=0.0, ge=0.0)
+    error: Optional[str] = None
+
+
+class AuthorizedAction(StrictModel):
+    tool_name: str
+    tool_args: Dict[str, Any]
+    target_fields: List[str]
+
+
+class ActionRejection(StrictModel):
+    reason_code: str
+    details: str = ""
+
+
+class VerificationResult(StrictModel):
+    status: Literal["accepted", "rejected", "review"]
+    reason_code: str
+    accepted_patches: List[FieldPatch] = Field(default_factory=list)
+    rejected_fields: List[str] = Field(default_factory=list)
+
+
+class RecoveryBudget(StrictModel):
+    max_steps: int = Field(default=3, gt=0)
+    max_tool_calls: int = Field(default=5, gt=0)
+    max_llm_calls: int = Field(default=2, gt=0)
+    deadline_seconds: float = Field(default=30.0, gt=0.0)
+
+    def is_exhausted(
+        self,
+        step_count: int,
+        tool_call_count: int,
+        llm_call_count: int,
+        deadline_at: float,
+        now: Optional[float] = None,
+    ) -> bool:
+        current_time = time.time() if now is None else now
+        return (
+            step_count >= self.max_steps
+            or tool_call_count >= self.max_tool_calls
+            or llm_call_count >= self.max_llm_calls
+            or (deadline_at > 0 and current_time >= deadline_at)
+        )
