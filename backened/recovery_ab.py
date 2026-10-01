@@ -12,14 +12,11 @@ from config import load_yaml_config
 from graph.controller import LangGraphController
 
 
-def build_variant_config(config: Dict, agent_loop_enabled: bool) -> Dict:
+def build_variant_config(config: Dict, recovery_enabled: bool) -> Dict:
     variant = copy.deepcopy(config)
     variant.setdefault("processing", {})["dry_run"] = True
     agentic = variant.setdefault("agentic", {})
-    agentic.setdefault("recovery", {})["enabled"] = agent_loop_enabled
-    agentic["recovery"]["agent_loop_enabled"] = agent_loop_enabled
-    agentic.setdefault("reflection", {})["enabled"] = False
-    agentic.setdefault("field_recovery", {})["enabled"] = False
+    agentic.setdefault("recovery", {})["enabled"] = recovery_enabled
     agentic.setdefault("memory", {})["enabled"] = False
     agentic.setdefault("rag", {})["enabled"] = False
     return variant

@@ -5,17 +5,16 @@ from graph.builder import (
     route_after_clean,
     route_after_diagnosis,
 )
-from graph.nodes import mark_low_quality_node, reflect_node, store_node
+from graph.nodes import mark_low_quality_node, store_node
 from graph.recovery_nodes import diagnose_failure_node
 from graph.state import create_initial_state
 
 
-def base_config(max_retries=2):
+def base_config():
     return {
         "agents": {"cleaner_validator": {"quality_threshold": 0.5}},
         "agentic": {
             "recovery": {"enabled": True},
-            "reflection": {"enabled": True, "max_retries": max_retries}
         },
     }
 
@@ -28,16 +27,15 @@ def test_quality_routes_normal_records_to_store_and_anomalies_to_diagnosis():
     )
 
 
-def test_diagnosed_anomaly_respects_existing_retry_budget():
-    assert route_after_diagnosis({"retry_count": 0}, base_config()) == "reflect"
-    assert route_after_diagnosis({"retry_count": 2}, base_config()) == "low_quality"
+def test_diagnosed_anomaly_enters_constrained_recovery():
+    assert route_after_diagnosis({}, base_config()) == "plan_recovery"
 
 
-def test_disabled_recovery_keeps_legacy_quality_routing():
+def test_disabled_recovery_routes_to_low_quality():
     config = base_config()
     config["agentic"]["recovery"]["enabled"] = False
 
-    assert route_after_clean({"quality_score": 0.2, "retry_count": 0}, config) == "reflect"
+    assert route_after_clean({"quality_score": 0.2}, config) == "low_quality"
 
 
 def test_initial_state_contains_recovery_defaults():
@@ -71,14 +69,11 @@ def test_diagnosis_node_records_profile_without_raw_content_in_trace():
     assert "SECRET_RAW_CONTENT" not in str(result["trace_events"])
 
 
-def test_reflect_and_low_quality_append_bounded_decision_trace():
+def test_low_quality_appends_bounded_decision_trace():
     state = create_initial_state("task-1", "sample.json")
-    state.update({"source": "CVE", "quality_score": 0.2, "extraction_strategy": "rule"})
-
-    reflected = reflect_node(state, base_config())
+    state.update({"source": "CVE", "quality_score": 0.2})
     aborted = mark_low_quality_node(state, {})
 
-    assert reflected["trace_events"][-1]["decision"] == "REPLAN"
     assert aborted["trace_events"][-1]["decision"] == "ABORT"
 
 

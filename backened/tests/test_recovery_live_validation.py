@@ -16,10 +16,6 @@ class SourceExtractor:
     def calculate_confidence(self, data):
         return 0.8
 
-    def extract_by_strategy(self, content, strategy, file_path, rag_context):
-        return self.extract(content, file_path)
-
-
 class ExtractorConfig:
     def has_subtable(self, source):
         return False
@@ -47,31 +43,27 @@ class SuccessfulGraph:
         return {**state, "final_status": "success"}
 
 
-def test_cli_flags_enable_recovery_and_dry_run_without_changing_defaults():
+def test_cli_exposes_dry_run_without_a_second_recovery_switch():
     default = main.parse_cli_args(["--file", "sample.json"])
-    enabled = main.parse_cli_args(
-        ["--file", "sample.json", "--agent-recovery", "--dry-run"]
-    )
+    enabled = main.parse_cli_args(["--file", "sample.json", "--dry-run"])
 
-    assert default.agent_recovery is False
     assert default.dry_run is False
-    assert enabled.agent_recovery is True
+    assert not hasattr(default, "agent_recovery")
     assert enabled.dry_run is True
 
 
 def test_runtime_options_only_override_explicit_flags():
     config = {
         "processing": {"dry_run": False},
-        "agentic": {"recovery": {"agent_loop_enabled": False}},
+        "agentic": {"recovery": {"enabled": True}},
     }
 
-    unchanged = main.apply_runtime_options(config, False, False)
-    enabled = main.apply_runtime_options(config, True, True)
+    unchanged = main.apply_runtime_options(config, False)
+    enabled = main.apply_runtime_options(config, True)
 
     assert unchanged["processing"]["dry_run"] is False
-    assert unchanged["agentic"]["recovery"]["agent_loop_enabled"] is False
+    assert unchanged["agentic"]["recovery"]["enabled"] is True
     assert enabled["processing"]["dry_run"] is True
-    assert enabled["agentic"]["recovery"]["agent_loop_enabled"] is True
     assert enabled["agentic"]["rag"]["enabled"] is False
 
 
@@ -93,24 +85,6 @@ def test_dry_run_extract_skips_database_deduplication():
 
     assert storage.db_reads == 0
     assert result["extracted_data"]["cve_id"] == "CVE-2026-1234"
-
-
-def test_llm_full_extraction_counts_its_llm_call():
-    sample = Path(__file__).parent / "fixtures" / "recovery_cases.json"
-    state = create_initial_state("task-1", str(sample))
-    state["extraction_strategy"] = "llm_full"
-
-    result = asyncio.run(
-        extract_node(
-            state,
-            {
-                "processing": {"dry_run": True},
-                "_extractor": FakeExtractor(),
-            },
-        )
-    )
-
-    assert result["llm_call_count"] == 1
 
 
 def test_dry_run_store_returns_candidate_without_database_or_rag_writes():
@@ -144,7 +118,6 @@ def test_controller_does_not_initialize_milvus_rag_in_dry_run():
             "memory": {"enabled": False},
             "tools": {"enabled": False},
             "skills": {"enabled": False},
-            "planner": {"enabled": False},
             "chat": {"enabled": False},
             "recovery": {"enabled": False},
         },
@@ -159,7 +132,6 @@ def test_controller_does_not_initialize_milvus_rag_in_dry_run():
 def test_standalone_file_processing_counts_the_file_in_stats():
     controller = LangGraphController.__new__(LangGraphController)
     controller.graph = SuccessfulGraph()
-    controller._file_strategies = {}
     controller.stats = {
         "total": 0,
         "success": 0,
@@ -180,19 +152,19 @@ def test_ab_configs_are_isolated_and_force_side_effect_free_runs():
     base = {
         "processing": {"dry_run": False},
         "agentic": {
-            "recovery": {"agent_loop_enabled": False},
+            "recovery": {"enabled": True},
             "memory": {"enabled": True},
         },
     }
 
-    legacy = build_variant_config(base, agent_loop_enabled=False)
-    agent = build_variant_config(base, agent_loop_enabled=True)
+    legacy = build_variant_config(base, recovery_enabled=False)
+    agent = build_variant_config(base, recovery_enabled=True)
 
     assert base["processing"]["dry_run"] is False
     assert legacy["processing"]["dry_run"] is True
     assert agent["processing"]["dry_run"] is True
-    assert legacy["agentic"]["recovery"]["agent_loop_enabled"] is False
-    assert agent["agentic"]["recovery"]["agent_loop_enabled"] is True
+    assert legacy["agentic"]["recovery"]["enabled"] is False
+    assert agent["agentic"]["recovery"]["enabled"] is True
     assert legacy["agentic"]["memory"]["enabled"] is False
     assert agent["agentic"]["memory"]["enabled"] is False
     assert legacy["agentic"]["rag"]["enabled"] is False

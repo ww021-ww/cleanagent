@@ -13,7 +13,6 @@ from graph.nodes import (
     clean_validate_node,
     store_node,
     mark_low_quality_node,
-    reflect_node,
 )
 from graph.recovery_nodes import (
     decide_next_node,
@@ -56,21 +55,13 @@ def route_after_clean(state: VulnProcessingState, config: Dict) -> str:
     if state.get('quality_score', 0.0) >= quality_threshold:
         return 'store'
     if not config.get('agentic', {}).get('recovery', {}).get('enabled', False):
-        return route_after_diagnosis(state, config)
+        return 'low_quality'
     return 'diagnose_failure'
 
 
 def route_after_diagnosis(state: VulnProcessingState, config: Dict) -> str:
-    recovery_cfg = config.get('agentic', {}).get('recovery', {})
-    if recovery_cfg.get('agent_loop_enabled', False):
-        return 'plan_recovery'
-
-    reflection_cfg = config.get('agentic', {}).get('reflection', {})
-    if reflection_cfg.get('enabled', False):
-        max_retries = reflection_cfg.get('max_retries', 2)
-        if state.get('retry_count', 0) < max_retries:
-            return 'reflect'
-    return 'low_quality'
+    enabled = config.get('agentic', {}).get('recovery', {}).get('enabled', False)
+    return 'plan_recovery' if enabled else 'low_quality'
 
 
 def route_after_plan(state: VulnProcessingState, config: Dict) -> str:
@@ -133,7 +124,6 @@ def build_vuln_processing_graph(config: Dict, checkpointer=None) -> StateGraph:
     clean_with_config = _bind(clean_validate_node, config)
     store_with_config = _bind(store_node, config)
     low_quality_with_config = _bind(mark_low_quality_node, config)
-    reflect_with_config = _bind(reflect_node, config)
     diagnose_with_config = _bind(diagnose_failure_node, config)
     plan_recovery_with_config = _bind(plan_recovery_node, config)
     guard_action_with_config = _bind(guard_action_node, config)
@@ -158,7 +148,6 @@ def build_vuln_processing_graph(config: Dict, checkpointer=None) -> StateGraph:
     workflow.add_node("clean",       clean_with_config)
     workflow.add_node("store",       store_with_config)
     workflow.add_node("low_quality", low_quality_with_config)
-    workflow.add_node("reflect",     reflect_with_config)
     workflow.add_node("diagnose_failure", diagnose_with_config)
     workflow.add_node("plan_recovery", plan_recovery_with_config)
     workflow.add_node("guard_action", guard_action_with_config)
@@ -182,7 +171,6 @@ def build_vuln_processing_graph(config: Dict, checkpointer=None) -> StateGraph:
         {
             "store": "store",
             "diagnose_failure": "diagnose_failure",
-            "reflect": "reflect",
             "low_quality": "low_quality",
         },
     )
@@ -191,7 +179,6 @@ def build_vuln_processing_graph(config: Dict, checkpointer=None) -> StateGraph:
         route_after_diagnosis_with_config,
         {
             "plan_recovery": "plan_recovery",
-            "reflect": "reflect",
             "low_quality": "low_quality",
         },
     )
@@ -233,7 +220,6 @@ def build_vuln_processing_graph(config: Dict, checkpointer=None) -> StateGraph:
         {"store": "store", "end": END},
     )
     workflow.add_edge("reject_review", END)
-    workflow.add_edge("reflect", "extract")   # 反思循环
     workflow.add_edge("store",       END)
     workflow.add_edge("low_quality", END)
 

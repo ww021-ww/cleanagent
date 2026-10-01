@@ -85,8 +85,7 @@ def _config(db, *, dry_run=False):
             "storage": {"skip_html_if_json_processed": False},
         },
         "agentic": {
-            "recovery": {"enabled": True, "agent_loop_enabled": True},
-            "reflection": {"enabled": False},
+            "recovery": {"enabled": True},
             "smart_merge": {"enabled": False},
         },
         "_storage": SimpleNamespace(db=db),

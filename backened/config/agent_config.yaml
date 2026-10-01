@@ -155,10 +155,9 @@ agentic:
           affected: [Affected Systems/Products]
           remediation: [solutions, workaround]
 
-  # Phase 1 异常恢复：只做确定性诊断与脱敏 Trace，不生成或应用字段 Patch
+  # 受约束异常恢复：只允许白名单工具和有证据的字段 Patch
   recovery:
     enabled: true
-    agent_loop_enabled: false
     trace_max_chars: 512
     max_steps: 3
     max_tool_calls: 5
@@ -167,25 +166,9 @@ agentic:
     tool_timeout_seconds: 8
     max_result_chars: 2000
 
-  # 反思重试：提取质量不达标时自动升级策略重试
-  reflection:
-    enabled: true
-    max_retries: 2
-    strategy_escalation:
-      - rule
-      - hybrid
-      - llm_full
-
-  # LLM 字段修复：清洗后仍有缺失必填字段时用 LLM 补全
-  field_recovery:
-    enabled: true
-    max_fields_per_call: 5
-    only_required: true
-
-  # 双层记忆：批次内去重 + 跨批次策略经验持久化
+  # 双层记忆：批次内去重 + 跨批次质量统计持久化
   memory:
     enabled: true
-    failure_threshold: 3
     persist_file: logs/memory.json
     incremental_aggregate: true
     use_bloom_filter: false
@@ -193,12 +176,6 @@ agentic:
   # 智能合并：upsert 前保护数据库中已有的有效字段
   smart_merge:
     enabled: true
-
-  # 任务规划：批处理前预分析文件，按复杂度分配策略
-  planner:
-    enabled: true
-    file_size_threshold: 102400    # >100KB 使用 hybrid 策略
-    skip_known_ids: true
 
   # RAG 检索增强：向量化已处理漏洞，为 LLM 提取提供 few-shot 参考
   rag:

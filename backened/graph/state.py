@@ -33,11 +33,7 @@ class VulnProcessingState(TypedDict):
     stored: bool                       # 是否已存储
     storage_status: str                # 存储状态 (success/failed)
     
-    # ========== 反思与修复 ==========
-    extraction_strategy: str           # 当前提取策略 (rule / hybrid / llm_full)
-    reflection_notes: str              # 反思分析笔记
-    recovery_attempted: bool           # 是否已尝试 LLM 字段修复
-    recovered_fields: List[str]        # 本次修复成功的字段列表
+    # ========== 质量失败与恢复 ==========
     failure_profile: Optional[Dict]     # 结构化失败诊断
     trace_events: List[Dict]            # 安全审计轨迹（不记录原始内容）
 
@@ -60,7 +56,6 @@ class VulnProcessingState(TypedDict):
     # ========== 错误处理 ==========
     errors: List[str]                  # 错误列表
     warnings: List[str]                # 警告列表
-    retry_count: int                   # 重试次数
     
     # ========== 元数据 ==========
     start_time: float                  # 开始时间
@@ -96,10 +91,6 @@ def create_initial_state(task_id: str, file_path: str) -> VulnProcessingState:
         quality_score=0.0,
         stored=False,
         storage_status='',
-        extraction_strategy='',
-        reflection_notes='',
-        recovery_attempted=False,
-        recovered_fields=[],
         failure_profile=None,
         trace_events=[],
         recovery_decision=None,
@@ -118,7 +109,6 @@ def create_initial_state(task_id: str, file_path: str) -> VulnProcessingState:
         deadline_at=0.0,
         errors=[],
         warnings=[],
-        retry_count=0,
         start_time=time.time(),
         end_time=None,
         final_status='pending'

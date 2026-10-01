@@ -36,8 +36,6 @@ def build_parser() -> argparse.ArgumentParser:
                         help='最大并发数（默认: 4）')
     parser.add_argument('--timeout', '-t', type=int, default=3600,
                         help='超时时间（秒，默认: 3600）')
-    parser.add_argument('--agent-recovery', action='store_true',
-                        help='为本次运行启用受约束异常恢复 Agent Loop')
     parser.add_argument('--dry-run', action='store_true',
                         help='执行完整流程但不写入 MySQL 或 Milvus')
     return parser
@@ -47,12 +45,8 @@ def parse_cli_args(argv=None):
     return build_parser().parse_args(argv)
 
 
-def apply_runtime_options(config: dict, agent_recovery: bool, dry_run: bool) -> dict:
+def apply_runtime_options(config: dict, dry_run: bool) -> dict:
     runtime = copy.deepcopy(config)
-    if agent_recovery:
-        runtime.setdefault('agentic', {}).setdefault('recovery', {})[
-            'agent_loop_enabled'
-        ] = True
     if dry_run:
         runtime.setdefault('processing', {})['dry_run'] = True
         runtime.setdefault('agentic', {}).setdefault('rag', {})['enabled'] = False
@@ -88,9 +82,7 @@ async def main():
     args = parse_cli_args()
     
     print(f"加载配置文件: {args.config}")
-    config = apply_runtime_options(
-        load_yaml_config(args.config), args.agent_recovery, args.dry_run
-    )
+    config = apply_runtime_options(load_yaml_config(args.config), args.dry_run)
     
     if args.workers:
         config['processing']['max_workers'] = args.workers

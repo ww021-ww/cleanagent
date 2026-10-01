@@ -102,9 +102,7 @@ def test_html_only_source_is_reported_as_not_auto_recoverable():
 def test_benchmark_variants_are_rule_baseline_and_recovery_agent():
     config = {
         "agentic": {
-            "recovery": {"enabled": True, "agent_loop_enabled": False},
-            "reflection": {"enabled": True},
-            "field_recovery": {"enabled": True},
+            "recovery": {"enabled": True},
         }
     }
 
@@ -113,9 +111,7 @@ def test_benchmark_variants_are_rule_baseline_and_recovery_agent():
     report = compare_results({"safe_block_rate": 0.5}, {"safe_block_rate": 1.0})
 
     assert baseline["agentic"]["recovery"]["enabled"] is False
-    assert baseline["agentic"]["reflection"]["enabled"] is False
-    assert baseline["agentic"]["field_recovery"]["enabled"] is False
-    assert agent["agentic"]["recovery"]["agent_loop_enabled"] is True
+    assert agent["agentic"]["recovery"]["enabled"] is True
     assert set(report) == {"baseline", "agent", "delta"}
 
 

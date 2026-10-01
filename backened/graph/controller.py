@@ -88,15 +88,6 @@ class LangGraphController:
         else:
             self.skill_registry = None
 
-        # PlannerAgent
-        if agentic.get('planner', {}).get('enabled', True):
-            from agent.planner import PlannerAgent
-            self.planner = _init_optional(
-                PlannerAgent, config, self.memory, label='PlannerAgent'
-            )
-        else:
-            self.planner = None
-
         # ChatAgent（暴露为属性供 api/app.py 使用）
         if agentic.get('chat', {}).get('enabled', False):
             from agent.chat import ChatAgent
@@ -127,7 +118,7 @@ class LangGraphController:
         self.recovery_verifier = None
         self.recovery_budget = None
         recovery_cfg = agentic.get('recovery', {})
-        if recovery_cfg.get('enabled') and recovery_cfg.get('agent_loop_enabled'):
+        if recovery_cfg.get('enabled'):
             from agent.recovery.guard import RecoveryActionGuard
             from agent.recovery.models import RecoveryBudget
             from agent.recovery.planner import ConstrainedRecoveryPlanner
@@ -168,8 +159,6 @@ class LangGraphController:
         }
 
         self.graph = build_vuln_processing_graph(self.config, checkpointer=checkpointer)
-        self._file_strategies: dict = {}
-
         self.stats = {
             'total': 0, 'success': 0, 'failed': 0,
             'low_quality': 0, 'skipped': 0, 'review_pending': 0,
@@ -179,7 +168,7 @@ class LangGraphController:
         active = [n for n, o in [
             ('Memory', self.memory), ('RAG', self.rag),
             ('ToolAgent', self.tool_agent), ('SkillRegistry', self.skill_registry),
-            ('Planner', self.planner), ('ChatAgent', self.chat_agent),
+            ('ChatAgent', self.chat_agent),
             ('RecoveryAgent', self.recovery_planner),
         ] if o]
         logger.info(f"LangGraphController initialized. 活跃模块: {active or ['基础']}")
@@ -195,10 +184,7 @@ class LangGraphController:
             处理结果
         """
         task_id = str(uuid.uuid4())
-        strategy = self._file_strategies.get(file_path, '')
         initial_state = create_initial_state(task_id, file_path)
-        if strategy:
-            initial_state = {**initial_state, 'extraction_strategy': strategy}
         
         file_name = Path(file_path).name
         logger.info(f"🚀 开始处理: {file_name}")
@@ -313,25 +299,7 @@ class LangGraphController:
         except Exception as e:
             logger.warning(f"预过滤查询失败，将处理全部文件: {e}")
 
-        # PlannerAgent：分析文件、分配策略、生成优先级排序
-        if self.planner and files:
-            plan = self.planner.plan(files)
-            file_strategies = plan.get('file_strategies', {})
-            self._file_strategies = {
-                str(k): v for k, v in file_strategies.items()
-            }
-            priority_strs = plan.get('priority_order', [])
-            files_by_path = {str(f): f for f in files}
-            files = [
-                files_by_path[p] for p in priority_strs if p in files_by_path
-            ] + [
-                f for f in files if str(f) not in set(priority_strs)
-            ]
-            logger.info(
-                f"📋 Planner: 估算 LLM 调用 {plan.get('estimated_llm_calls', 0)} 次"
-            )
-        else:
-            self._file_strategies = {}
+        files.sort(key=lambda path: (path.stat().st_size, str(path)))
 
         self.stats['start_time'] = time.time()
 

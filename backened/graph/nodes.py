@@ -17,13 +17,10 @@ logger = logging.getLogger(__name__)
 
 async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessingState:
     """
-    提取节点（async）
+    确定性提取节点（async）。
 
-    支持三级策略：rule → hybrid → llm_full
-    策略读取项: state.extraction_strategy > memory推荐 > 默认 rule
     使用 config['_extractor'] / config['_storage'] 复用已初始化的 Agent 实例。
     """
-    llm_call_count = state.get('llm_call_count', 0)
     try:
         from agent.extractor import ExtractorAgent
 
@@ -88,40 +85,10 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
 
         source_extractor = extractor.extractors[source_lower]
 
-        # 策略优先级：state 设置 > memory 推荐 > 默认 rule
-        strategy = state.get('extraction_strategy', '')
-        if not strategy:
-            if memory:
-                strategy = memory.get_recommended_strategy(source) or 'rule'
-            else:
-                strategy = 'rule'
-
-        # RAG：仅 llm_full 策略时检索历史相似漏洞作为 few-shot 参考
-        # hybrid 的 LLM 补全职责由 clean_validate_node.recover_fields 负责
-        rag_context = ''
-        rag = config.get('_rag')
-        if rag and strategy == 'llm_full':
-            similar = await asyncio.to_thread(
-                rag.retrieve_similar, content[:2000], source
-            )
-            rag_context = rag.build_rag_context(similar)
-            if rag_context:
-                logger.info(f"🔍 RAG: 检索到 {len(similar)} 个相似漏洞作为参考")
-
-        if strategy == 'llm_full':
-            # 全量 LLM 重提取（反思机制最终兜底）
-            logger.info(f"📄 LLM全量提取: {file_name} (策略=llm_full)")
-            llm_call_count += 1
-            extracted_list = await asyncio.to_thread(
-                source_extractor.extract_by_strategy,
-                content, 'llm_full', state['file_path'], rag_context
-            )
-        else:
-            # rule / hybrid：规则提取，LLM 字段补全由 clean_validate 节点负责
-            logger.info(f"📄 规则提取: {file_name} (策略={strategy})")
-            extracted_list = await asyncio.to_thread(
-                source_extractor.extract, content, state['file_path']
-            )
+        logger.info(f"📄 确定性提取: {file_name}")
+        extracted_list = await asyncio.to_thread(
+            source_extractor.extract, content, state['file_path']
+        )
 
         if not extracted_list:
             logger.warning(f"❌ 提取失败: {file_name} - 无数据")
@@ -133,7 +100,6 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
                 'extracted_subtable_data': None,
                 'extraction_confidence': 0.0,
                 'errors': state.get('errors', []) + ['No data extracted'],
-                'llm_call_count': llm_call_count,
                 'final_status': 'failed'
             }
 
@@ -170,11 +136,9 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
             'all_extracted_data': all_extracted_data,
             'extracted_subtable_data': extracted_subtable_data,
             'extraction_confidence': confidence,
-            'extraction_strategy': strategy,
             'is_multi_vuln': len(extracted_list) > 1,
             'vuln_count': len(extracted_list),
             'errors': [],
-            'llm_call_count': llm_call_count,
         }
 
     except Exception as e:
@@ -183,8 +147,6 @@ async def extract_node(state: VulnProcessingState, config: Dict) -> VulnProcessi
         return {
             **state,
             'errors': state.get('errors', []) + [f"Extraction error: {str(e)}"],
-            'retry_count': state.get('retry_count', 0) + 1,
-            'llm_call_count': llm_call_count,
             'final_status': 'failed',
         }
 
@@ -193,10 +155,8 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
     """
     清洗验证节点（async）
 
-    增强：当有必填字段缺失且未尝试过修复时，调用 LLM recover_fields()
     使用 config['_cleaner'] 复用已初始化的 CleanerValidatorAgent 实例。
     """
-    llm_call_count = state.get('llm_call_count', 0)
     try:
         from agent.cleaner_validator import CleanerValidatorAgent
 
@@ -210,61 +170,6 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
         cleaner = config.get('_cleaner') or CleanerValidatorAgent(config, None)
         cleaned_data = cleaner.cleaner.clean(state['extracted_data'])
         validation_result = cleaner.validate(cleaned_data, state['source'])
-
-        # LLM 字段修复：仅 hybrid 策略触发（rule=纯规则，llm_full=整体重提取）
-        recovered_fields = []
-        recovery_attempted = state.get('recovery_attempted', False)
-        recovery_cfg = config.get('agentic', {}).get('field_recovery', {})
-        agent_loop_enabled = config.get('agentic', {}).get('recovery', {}).get(
-            'agent_loop_enabled', False
-        )
-        current_strategy = state.get('extraction_strategy', 'rule')
-        if (
-            recovery_cfg.get('enabled', False)
-            and not agent_loop_enabled
-            and current_strategy == 'hybrid'
-            and validation_result.get('errors')
-            and state.get('raw_content')
-            and not recovery_attempted
-        ):
-            llm_call_count += 1
-            cleaned_data, recovered_fields = await asyncio.to_thread(
-                cleaner.recover_fields,
-                cleaned_data, validation_result, state['source'], state['raw_content']
-            )
-            recovery_attempted = True  # 只在实际执行修复后才置 True
-            if recovered_fields:
-                validation_result = cleaner.validate(cleaned_data, state['source'])
-
-                memory = config.get('_memory')
-                if memory and validation_result.get('errors'):
-                    still_missing = [
-                        e.replace('Missing required field: ', '')
-                        for e in validation_result['errors']
-                        if e.startswith('Missing required field:')
-                    ]
-                    if still_missing:
-                        memory.record_field_failures(state['source'], still_missing)
-
-        # ToolAgent：LLM 修复后仍有缺失字段，尝试外部工具补全
-        tool_agent = config.get('_tool_agent')
-        if tool_agent and not agent_loop_enabled and validation_result.get('errors'):
-            still_missing = [
-                e.replace('Missing required field: ', '')
-                for e in validation_result['errors']
-                if e.startswith('Missing required field:')
-            ]
-            if still_missing:
-                filled = await asyncio.to_thread(
-                    tool_agent.auto_fill,
-                    cleaned_data, still_missing,
-                    state.get('source', ''), state.get('raw_content', '')
-                )
-                if filled:
-                    for k, v in filled.items():
-                        if not k.startswith('_') and v and not cleaned_data.get(k):
-                            cleaned_data[k] = v
-                    validation_result = cleaner.validate(cleaned_data, state['source'])
 
         quality_score = cleaner.calculate_quality_score(
             cleaned_data, validation_result, state['extraction_confidence']
@@ -289,9 +194,6 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
             'validation_result': validation_result,
             'quality_score': quality_score,
             'warnings': validation_result.get('warnings', []),
-            'recovery_attempted': recovery_attempted,
-            'recovered_fields': recovered_fields,
-            'llm_call_count': llm_call_count,
         }
 
     except Exception as e:
@@ -300,7 +202,6 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
         return {
             **state,
             'errors': state.get('errors', []) + [f"Cleaning error: {str(e)}"],
-            'llm_call_count': llm_call_count,
             'final_status': 'failed',
         }
 
@@ -413,11 +314,7 @@ async def store_node(state: VulnProcessingState, config: Dict) -> VulnProcessing
             if memory:
                 if vuln_id:
                     memory.mark_seen(vuln_id, source)
-                memory.record_success(
-                    source,
-                    quality_score=state.get('quality_score', 0.0),
-                    strategy=state.get('extraction_strategy', 'rule'),
-                )
+                memory.record_success(source, state.get('quality_score', 0.0))
             return {
                 **state,
                 'stored': True, 'storage_status': 'success_pending_index',
@@ -451,10 +348,7 @@ def mark_low_quality_node(state: VulnProcessingState, config: Dict) -> VulnProce
 
     memory = config.get('_memory')
     if memory and state.get('source'):
-        memory.record_failure(
-            state['source'],
-            strategy=state.get('extraction_strategy', 'rule'),
-        )
+        memory.record_failure(state['source'])
 
     decision = state.get('final_decision') or 'ABORT'
     reason = 'human_review_required' if decision == 'REVIEW' else 'recovery_exhausted'
@@ -464,48 +358,5 @@ def mark_low_quality_node(state: VulnProcessingState, config: Dict) -> VulnProce
         'end_time': time.time(),
         'trace_events': append_trace_event(
             state, 'low_quality', reason, decision=decision
-        ),
-    }
-
-
-def reflect_node(state: VulnProcessingState, config: Dict) -> VulnProcessingState:
-    """
-    反思节点 — 分析失败原因，升级提取策略，清空中间状态准备重试
-
-    策略升级顺序：rule → hybrid → llm_full
-    """
-    reflection_cfg = config.get('agentic', {}).get('reflection', {})
-    escalation = reflection_cfg.get('strategy_escalation', ['rule', 'hybrid', 'llm_full'])
-
-    current_strategy = state.get('extraction_strategy', '') or 'rule'
-    retry_count = state.get('retry_count', 0)
-
-    try:
-        idx = escalation.index(current_strategy)
-        next_strategy = escalation[min(idx + 1, len(escalation) - 1)]
-    except ValueError:
-        next_strategy = escalation[min(retry_count, len(escalation) - 1)]
-
-    note = (
-        f"[Reflect #{retry_count + 1}] score={state.get('quality_score', 0.0):.2f}, "
-        f"策略 {current_strategy} → {next_strategy}"
-    )
-    file_name = Path(state['file_path']).name
-    logger.info(f"🔄 反思重试: {file_name} - {note}")
-
-    return {
-        **state,
-        'extraction_strategy': next_strategy,
-        'retry_count': retry_count + 1,
-        'reflection_notes': note,
-        # 清空中间状态，让 extract → clean 重新运行
-        'extracted_data': None,
-        'cleaned_data': None,
-        'validation_result': None,
-        'quality_score': 0.0,
-        'recovery_attempted': False,
-        'recovered_fields': [],
-        'trace_events': append_trace_event(
-            state, 'reflect', 'quality_below_threshold', decision='REPLAN'
         ),
     }

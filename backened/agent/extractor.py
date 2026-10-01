@@ -8,9 +8,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List
 from bs4 import BeautifulSoup
-from langchain_openai import ChatOpenAI
-
-from config import SOURCE_PATTERNS, get_llm_config
+from config import SOURCE_PATTERNS
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +16,9 @@ logger = logging.getLogger(__name__)
 class SourceExtractor:
     """单个来源的提取器"""
     
-    def __init__(self, source: str, field_config: Dict, llm: ChatOpenAI):
+    def __init__(self, source: str, field_config: Dict, llm=None):
         self.source = source
         self.field_config = field_config
-        self.llm = llm
     
     def extract(self, content: str, file_path: str = '') -> List[Dict[str, Any]]:
         """
@@ -133,19 +130,7 @@ class SourceExtractor:
         if self.source.upper() == 'JVN':
             return self._extract_jvn_from_html(content)
         
-        # 1. 规则提取
-        rule_result = self.extract_by_rules(content)
-        confidence = self.calculate_confidence(rule_result)
-        
-        # 2. 如果置信度低，使用LLM补充
-        if confidence < 0.8:
-            llm_result = self.extract_by_llm(content)
-            # 合并结果
-            final_result = self.merge_results(rule_result, llm_result)
-        else:
-            final_result = rule_result
-        
-        return final_result
+        return self.extract_by_rules(content)
 
     def _extract_jvn_from_html(self, content: str) -> Dict[str, Any]:
         """JVN专用HTML提取器 - 处理所有JVN页面格式
@@ -164,7 +149,7 @@ class SourceExtractor:
         # 从 <h1 class="h1ver2"> 第一行提取，原样保留（JVNVU#99979220、CPNI-072928 等）
         h1 = soup.find('h1', class_='h1ver2')
         if h1:
-            lines = [l.strip() for l in h1.get_text(separator='\n').splitlines() if l.strip()]
+            lines = [line.strip() for line in h1.get_text(separator='\n').splitlines() if line.strip()]
             if lines:
                 result['jvn_number'] = lines[0]
             if len(lines) >= 2:
@@ -730,85 +715,6 @@ class SourceExtractor:
         
         return None
     
-    def extract_by_llm(self, content: str, rag_context: str = '') -> Dict[str, Any]:
-        """使用LLM提取，可附带 RAG 历史参考上下文"""
-        field_descriptions = []
-        for field in self.field_config.get('fields', []):
-            required = "必填" if field.get('required') else "可选"
-            field_descriptions.append(
-                f"- {field['name']}: {field.get('description', '')} ({required})"
-            )
-
-        rag_section = f"{rag_context}\n\n" if rag_context else ""
-        prompt = f"""
-{rag_section}你是一个专业的{self.source.upper()}漏洞信息提取专家。
-请从以下HTML内容中提取漏洞信息，返回JSON格式。
-
-需要提取的字段：
-{chr(10).join(field_descriptions)}
-
-提取规则：
-1. 如果字段不存在，使用null
-2. 日期格式统一为ISO 8601 (YYYY-MM-DD HH:MM:SS)
-3. 布尔值使用true/false
-4. 数字类型不要加引号
-
-HTML内容：
-{content[:20000]}
-
-请返回JSON格式的提取结果。
-"""
-        
-        try:
-            response = self.llm.invoke(prompt)
-            import json
-            result = json.loads(response.content)
-            return result
-        except Exception as e:
-            logger.error(f"LLM extraction failed: {e}")
-            return {}
-    
-    def merge_results(self, rule_result: Dict, llm_result: Dict) -> Dict:
-        """合并规则提取和LLM提取结果"""
-        merged = rule_result.copy()
-        for key, value in llm_result.items():
-            if not merged.get(key) and value:
-                merged[key] = value
-        return merged
-
-    def extract_by_strategy(self, content: str, strategy: str, file_path: str = '',
-                            rag_context: str = '') -> List[Dict[str, Any]]:
-        """
-        按指定策略提取数据
-
-        strategy:
-          rule     — 规则提取（当前默认行为）
-          hybrid   — 规则提取 + LLM 补全缺失必填字段
-          llm_full — 纯 LLM 提取
-        rag_context: 历史相似漏洞参考文本（由 RAGRetriever 构建）
-        """
-        if strategy == 'llm_full':
-            result = self.extract_by_llm(content, rag_context=rag_context)
-            return [result] if result else []
-
-        rule_results = self.extract(content, file_path)
-
-        if strategy == 'hybrid':
-            if not rule_results:
-                result = self.extract_by_llm(content, rag_context=rag_context)
-                return [result] if result else []
-            first = rule_results[0]
-            required_missing = any(
-                not first.get(f['name'])
-                for f in self.field_config.get('fields', [])
-                if f.get('required')
-            )
-            if required_missing:
-                llm_result = self.extract_by_llm(content, rag_context=rag_context)
-                rule_results[0] = self.merge_results(first, llm_result)
-
-        return rule_results
-
     def calculate_confidence(self, data: Dict) -> float:
         """计算提取置信度"""
         required_fields = [f for f in self.field_config.get('fields', []) 
@@ -1214,10 +1120,6 @@ class ExtractorAgent:
         config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'field_mappings.yaml')
         self.config_loader = FieldConfigLoader(config_path)
         
-        # 初始化LLM
-        llm_config = get_llm_config()
-        self.llm = ChatOpenAI(**llm_config)
-        
         # 为每个源创建提取器
         self.extractors = {}
         for source in self.config_loader.get_all_sources():
@@ -1226,7 +1128,6 @@ class ExtractorAgent:
             self.extractors[source.lower()] = SourceExtractor(
                 source=source,
                 field_config=source_config,
-                llm=self.llm
             )
         
         logger.info(f"Extractor agent initialized with sources: {list(self.extractors.keys())}")

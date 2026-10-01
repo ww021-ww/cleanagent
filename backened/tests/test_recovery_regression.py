@@ -55,12 +55,11 @@ def test_prompt_injection_is_data_not_a_trace_instruction():
     assert "Ignore validation" not in json.dumps(result["trace_events"])
 
 
-def test_phase_one_recovery_config_is_bounded():
+def test_recovery_config_is_bounded():
     config = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
 
     assert config["agentic"]["recovery"] == {
         "enabled": True,
-        "agent_loop_enabled": False,
         "trace_max_chars": 512,
         "max_steps": 3,
         "max_tool_calls": 5,

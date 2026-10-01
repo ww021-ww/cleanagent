@@ -2,11 +2,10 @@
 Cleaner-Validator Agent - 清洗验证智能体
 负责数据清洗和质量验证
 """
-import json
 import logging
 import re
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any
 from bs4 import BeautifulSoup
 from langchain_openai import ChatOpenAI
 
@@ -164,51 +163,6 @@ class CleanerValidatorAgent:
         self.enable_llm_validation = agent_config.get('enable_llm_validation', False)
         
         logger.info(f"Cleaner-Validator agent initialized (threshold={self.quality_threshold})")
-
-    def recover_fields(
-        self, data: Dict, validation: Dict, source: str, raw_content: str
-    ) -> Tuple[Dict, List[str]]:
-        """
-        使用 LLM 从 raw_content 中推断并修复缺失的必填字段
-
-        Returns:
-            (merged_data, recovered_field_names)
-        """
-        missing = [
-            e.replace('Missing required field: ', '')
-            for e in validation.get('errors', [])
-            if e.startswith('Missing required field:')
-        ]
-        if not missing:
-            return data, []
-
-        recovery_cfg = self.config.get('agentic', {}).get('field_recovery', {})
-        max_fields = recovery_cfg.get('max_fields_per_call', 5)
-        fields_to_recover = missing[:max_fields]
-
-        prompt = (
-            f"你是漏洞信息提取专家。以下字段提取失败，请从原始内容中重新提取：\n"
-            f"字段: {', '.join(fields_to_recover)}\n\n"
-            f"原始内容（前5000字）：\n{raw_content[:5000]}\n\n"
-            f"以 JSON 格式返回字段值，无法确定的用 null。"
-        )
-        try:
-            response = self.llm.invoke(prompt)
-            recovered = json.loads(response.content)
-            result = data.copy()
-            actually_recovered = [
-                field for field in fields_to_recover
-                if recovered.get(field) is not None
-                and recovered[field] != ''
-            ]
-            for field in actually_recovered:
-                result[field] = recovered[field]
-            if actually_recovered:
-                logger.info(f"🔧 字段修复: 成功修复 {actually_recovered}")
-            return result, actually_recovered
-        except Exception as e:
-            logger.warning(f"字段修复失败: {e}")
-            return data, []
 
     def validate(self, data: Dict, source: str) -> Dict:
         """

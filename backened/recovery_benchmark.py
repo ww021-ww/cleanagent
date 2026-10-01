@@ -184,9 +184,9 @@ def write_report(report: Dict, output: Path) -> None:
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _benchmark_config(config: Dict, agent_loop_enabled: bool) -> Dict:
-    runtime = build_variant_config(config, agent_loop_enabled)
-    for module in ("planner", "chat", "skills", "tools"):
+def _benchmark_config(config: Dict, recovery_enabled: bool) -> Dict:
+    runtime = build_variant_config(config, recovery_enabled)
+    for module in ("chat", "skills", "tools"):
         runtime.setdefault("agentic", {}).setdefault(module, {})["enabled"] = False
     return runtime
 

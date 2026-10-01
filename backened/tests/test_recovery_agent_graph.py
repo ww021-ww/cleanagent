@@ -17,7 +17,6 @@ from graph.builder import (
     route_after_decision,
     route_after_diagnosis,
 )
-from graph.nodes import clean_validate_node
 from graph.recovery_nodes import (
     decide_next_node,
     execute_action_node,
@@ -62,10 +61,8 @@ def config(planner=None, registry=None, budget=None, verifier=None):
         "agentic": {
             "recovery": {
                 "enabled": True,
-                "agent_loop_enabled": True,
                 "tool_timeout_seconds": 0.2,
             },
-            "reflection": {"enabled": True, "max_retries": 2},
         },
         "_recovery_budget": budget,
         "_recovery_registry": registry,
@@ -100,13 +97,13 @@ def recovery_state():
     return state
 
 
-def test_normal_record_and_disabled_loop_never_enter_agent_planner():
+def test_normal_record_and_disabled_recovery_never_enter_agent_planner():
     planner = FakePlanner(None)
     cfg = config(planner=planner)
 
     assert route_after_clean({"quality_score": 0.8}, cfg) == "store"
-    cfg["agentic"]["recovery"]["agent_loop_enabled"] = False
-    assert route_after_diagnosis({"retry_count": 0}, cfg) == "reflect"
+    cfg["agentic"]["recovery"]["enabled"] = False
+    assert route_after_diagnosis({}, cfg) == "low_quality"
     assert planner.calls == 0
 
 
@@ -248,73 +245,6 @@ def test_rejected_authoritative_patch_is_not_merged_and_budget_aborts():
     assert state["cleaned_data"]["cvss_score"] == 7.0
     assert state["final_decision"] == "ABORT"
     assert route_after_decision(state, cfg) == "low_quality"
-
-
-class FakeDataCleaner:
-    def clean(self, data):
-        return dict(data)
-
-
-class LegacyCleaner(FakeCleaner):
-    cleaner = FakeDataCleaner()
-
-    def __init__(self):
-        self.recovery_calls = 0
-
-    def recover_fields(self, data, validation, source, raw_content):
-        self.recovery_calls += 1
-        return {**data, "description": "unverified"}, ["description"]
-
-
-class LegacyToolAgent:
-    def __init__(self):
-        self.calls = 0
-
-    def auto_fill(self, *args):
-        self.calls += 1
-        return {"description": "unverified"}
-
-
-def test_agent_loop_skips_legacy_unverified_field_recovery():
-    cleaner = LegacyCleaner()
-    tools = LegacyToolAgent()
-    cfg = config()
-    cfg.update(_cleaner=cleaner, _tool_agent=tools)
-    cfg["agentic"]["field_recovery"] = {"enabled": True}
-    state = create_initial_state("task-1", "sample.json")
-    state.update(
-        source="CVE",
-        raw_content="raw",
-        extracted_data={"cve_id": "CVE-2026-1234"},
-        extraction_strategy="hybrid",
-        extraction_confidence=0.8,
-    )
-
-    result = asyncio.run(clean_validate_node(state, cfg))
-
-    assert cleaner.recovery_calls == 0
-    assert tools.calls == 0
-    assert not result["cleaned_data"].get("description")
-
-
-def test_legacy_hybrid_recovery_counts_its_llm_call():
-    cleaner = LegacyCleaner()
-    cfg = config()
-    cfg.update(_cleaner=cleaner, _tool_agent=None)
-    cfg["agentic"]["recovery"]["agent_loop_enabled"] = False
-    cfg["agentic"]["field_recovery"] = {"enabled": True}
-    state = create_initial_state("task-1", "sample.json")
-    state.update(
-        source="CVE",
-        raw_content="raw",
-        extracted_data={"cve_id": "CVE-2026-1234"},
-        extraction_strategy="hybrid",
-        extraction_confidence=0.8,
-    )
-
-    result = asyncio.run(clean_validate_node(state, cfg))
-
-    assert result["llm_call_count"] == 1
 
 
 def test_compiled_graph_contains_bounded_recovery_loop_nodes():

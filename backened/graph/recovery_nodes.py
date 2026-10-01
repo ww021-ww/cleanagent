@@ -52,7 +52,7 @@ def diagnose_failure_node(
         state.get("source"),
     )
     deadline_at = state.get("deadline_at", 0.0)
-    if _agent_loop_enabled(config) and deadline_at <= 0:
+    if _recovery_enabled(config) and deadline_at <= 0:
         deadline_at = time.time() + _budget(config).deadline_seconds
     return {
         **state,
@@ -67,10 +67,8 @@ def diagnose_failure_node(
     }
 
 
-def _agent_loop_enabled(config: Dict) -> bool:
-    return bool(
-        config.get("agentic", {}).get("recovery", {}).get("agent_loop_enabled", False)
-    )
+def _recovery_enabled(config: Dict) -> bool:
+    return bool(config.get("agentic", {}).get("recovery", {}).get("enabled", False))
 
 
 def _budget(config: Dict) -> RecoveryBudget:
