@@ -221,7 +221,7 @@ class LangGraphController:
         
         except Exception as e:
             logger.error(f"💥 处理异常: {file_name} - {str(e)}")
-            self.stats['failed'] += 1
+            self.update_stats({'final_status': 'failed'})
             return {
                 **initial_state,
                 'final_status': 'failed',
@@ -303,6 +303,7 @@ class LangGraphController:
             if skipped_count > 0:
                 logger.info(f"⏭️ 预过滤跳过已存在: {skipped_count} 个，剩余: {len(files)} 个")
             self.stats['skipped'] += skipped_count
+            self.stats['total'] += skipped_count
         except Exception as e:
             logger.warning(f"预过滤查询失败，将处理全部文件: {e}")
 
@@ -327,7 +328,6 @@ class LangGraphController:
             self._file_strategies = {}
 
         self.stats['start_time'] = time.time()
-        self.stats['total'] = len(files) + self.stats.get('skipped', 0)
 
         semaphore = asyncio.Semaphore(max_workers)
 
@@ -351,6 +351,7 @@ class LangGraphController:
     
     def update_stats(self, result: Dict):
         """更新统计信息"""
+        self.stats['total'] += 1
         status = result.get('final_status')
         if status == 'success':
             self.stats['success'] += 1

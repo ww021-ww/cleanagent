@@ -39,6 +39,11 @@ class StorageProbe:
         raise AssertionError("dry-run must not inspect the database")
 
 
+class SuccessfulGraph:
+    async def ainvoke(self, state):
+        return {**state, "final_status": "success"}
+
+
 def test_cli_flags_enable_recovery_and_dry_run_without_changing_defaults():
     default = main.parse_cli_args(["--file", "sample.json"])
     enabled = main.parse_cli_args(
@@ -128,6 +133,26 @@ def test_controller_does_not_initialize_milvus_rag_in_dry_run():
         LangGraphController(config)
 
     assert "RAGRetriever" not in initialized
+
+
+def test_standalone_file_processing_counts_the_file_in_stats():
+    controller = LangGraphController.__new__(LangGraphController)
+    controller.graph = SuccessfulGraph()
+    controller._file_strategies = {}
+    controller.stats = {
+        "total": 0,
+        "success": 0,
+        "failed": 0,
+        "low_quality": 0,
+        "skipped": 0,
+        "start_time": None,
+        "end_time": None,
+    }
+
+    asyncio.run(controller.process_file("sample.json"))
+
+    assert controller.get_stats()["total"] == 1
+    assert controller.get_stats()["success_rate"] == 1.0
 
 
 def test_ab_configs_are_isolated_and_force_side_effect_free_runs():
