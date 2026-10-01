@@ -16,6 +16,7 @@ from .models import (
     TraceEvent,
     VerificationResult,
 )
+from .tool_registry import RecoveryToolRegistry
 
 __all__ = [
     "diagnose_failure",
@@ -28,6 +29,7 @@ __all__ = [
     "FieldPatch",
     "RecoveryBudget",
     "RecoveryDecision",
+    "RecoveryToolRegistry",
     "ToolResult",
     "ToolSpec",
     "TraceEvent",
