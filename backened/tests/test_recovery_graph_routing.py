@@ -90,7 +90,7 @@ class FakeConfigLoader:
 class FakeDB:
     config_loader = FakeConfigLoader()
 
-    def upsert(self, data, source):
+    def upsert_with_outbox(self, data, source, subtable_records=None, review_task_id=None):
         return True
 
 

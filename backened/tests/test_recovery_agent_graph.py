@@ -134,7 +134,7 @@ def test_raw_text_evidence_routes_to_review_without_changing_description():
     assert state["cleaned_data"]["description"] is None
     assert state["verification"]["status"] == "review"
     assert state["final_decision"] == "REVIEW"
-    assert route_after_decision(state, cfg) == "low_quality"
+    assert route_after_decision(state, cfg) == "prepare_review"
 
 
 class SlowRegistry(RecoveryToolRegistry):

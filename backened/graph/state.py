@@ -49,6 +49,9 @@ class VulnProcessingState(TypedDict):
     proposed_patches: List[Dict]
     verification: Optional[Dict]
     final_decision: Optional[str]
+    review_task_id: Optional[str]
+    review_response: Optional[Dict]
+    review_status: Optional[str]
     step_count: int
     tool_call_count: int
     llm_call_count: int
@@ -106,6 +109,9 @@ def create_initial_state(task_id: str, file_path: str) -> VulnProcessingState:
         proposed_patches=[],
         verification=None,
         final_decision=None,
+        review_task_id=None,
+        review_response=None,
+        review_status=None,
         step_count=0,
         tool_call_count=0,
         llm_call_count=0,

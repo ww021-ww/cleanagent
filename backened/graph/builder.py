@@ -3,8 +3,8 @@ LangGraph Builder - 图构建器
 构建漏洞数据处理的状态图
 """
 import logging
+import inspect
 from typing import Dict
-from functools import partial
 
 from langgraph.graph import StateGraph, END
 from graph.state import VulnProcessingState
@@ -23,8 +23,26 @@ from graph.recovery_nodes import (
     plan_recovery_node,
     verify_evidence_node,
 )
+from graph.hil_nodes import (
+    apply_review_node,
+    human_review_node,
+    prepare_review_node,
+    reject_review_node,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _bind(function, app_config):
+    """Bind application config without exposing LangGraph's reserved config parameter."""
+    if inspect.iscoroutinefunction(function):
+        async def async_node(state):
+            return await function(state, app_config)
+        return async_node
+
+    def sync_node(state):
+        return function(state, app_config)
+    return sync_node
 
 
 def route_after_extract(state: VulnProcessingState, config: Dict) -> str:
@@ -70,7 +88,26 @@ def route_after_decision(state: VulnProcessingState, config: Dict) -> str:
         return 'store'
     if decision == 'REPLAN':
         return 'plan_recovery'
+    if decision == 'REVIEW':
+        return 'prepare_review'
     return 'low_quality'
+
+
+def route_after_prepare_review(state: VulnProcessingState, config: Dict) -> str:
+    return 'end' if state.get('review_status') == 'dry_run' else 'human_review'
+
+
+def route_after_human_review(state: VulnProcessingState, config: Dict) -> str:
+    action = (state.get('review_response') or {}).get('action')
+    if action == 'approve':
+        return 'apply_review'
+    if action == 'reject':
+        return 'reject_review'
+    raise ValueError(f"Unsupported review action: {action}")
+
+
+def route_after_apply_review(state: VulnProcessingState, config: Dict) -> str:
+    return 'store' if state.get('review_status') == 'approved' else 'end'
 
 
 def check_quality(state: VulnProcessingState, config: Dict) -> str:
@@ -79,7 +116,7 @@ def check_quality(state: VulnProcessingState, config: Dict) -> str:
     return route if route != 'diagnose_failure' else route_after_diagnosis(state, config)
 
 
-def build_vuln_processing_graph(config: Dict) -> StateGraph:
+def build_vuln_processing_graph(config: Dict, checkpointer=None) -> StateGraph:
     """
     构建漏洞数据处理图
 
@@ -92,23 +129,30 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
 
     workflow = StateGraph(VulnProcessingState)
 
-    extract_with_config      = partial(extract_node,          config=config)
-    clean_with_config        = partial(clean_validate_node,   config=config)
-    store_with_config        = partial(store_node,            config=config)
-    low_quality_with_config  = partial(mark_low_quality_node, config=config)
-    reflect_with_config      = partial(reflect_node,          config=config)
-    diagnose_with_config     = partial(diagnose_failure_node, config=config)
-    plan_recovery_with_config = partial(plan_recovery_node, config=config)
-    guard_action_with_config = partial(guard_action_node, config=config)
-    execute_action_with_config = partial(execute_action_node, config=config)
-    verify_evidence_with_config = partial(verify_evidence_node, config=config)
-    decide_next_with_config = partial(decide_next_node, config=config)
-    route_after_clean_with_config = partial(route_after_clean, config=config)
-    route_after_diagnosis_with_config = partial(route_after_diagnosis, config=config)
-    route_after_extract_with_config = partial(route_after_extract, config=config)
-    route_after_plan_with_config = partial(route_after_plan, config=config)
-    route_after_guard_with_config = partial(route_after_guard, config=config)
-    route_after_decision_with_config = partial(route_after_decision, config=config)
+    extract_with_config = _bind(extract_node, config)
+    clean_with_config = _bind(clean_validate_node, config)
+    store_with_config = _bind(store_node, config)
+    low_quality_with_config = _bind(mark_low_quality_node, config)
+    reflect_with_config = _bind(reflect_node, config)
+    diagnose_with_config = _bind(diagnose_failure_node, config)
+    plan_recovery_with_config = _bind(plan_recovery_node, config)
+    guard_action_with_config = _bind(guard_action_node, config)
+    execute_action_with_config = _bind(execute_action_node, config)
+    verify_evidence_with_config = _bind(verify_evidence_node, config)
+    decide_next_with_config = _bind(decide_next_node, config)
+    prepare_review_with_config = _bind(prepare_review_node, config)
+    human_review_with_config = _bind(human_review_node, config)
+    apply_review_with_config = _bind(apply_review_node, config)
+    reject_review_with_config = _bind(reject_review_node, config)
+    route_after_clean_with_config = _bind(route_after_clean, config)
+    route_after_diagnosis_with_config = _bind(route_after_diagnosis, config)
+    route_after_extract_with_config = _bind(route_after_extract, config)
+    route_after_plan_with_config = _bind(route_after_plan, config)
+    route_after_guard_with_config = _bind(route_after_guard, config)
+    route_after_decision_with_config = _bind(route_after_decision, config)
+    route_after_prepare_review_with_config = _bind(route_after_prepare_review, config)
+    route_after_human_review_with_config = _bind(route_after_human_review, config)
+    route_after_apply_review_with_config = _bind(route_after_apply_review, config)
 
     workflow.add_node("extract",     extract_with_config)
     workflow.add_node("clean",       clean_with_config)
@@ -121,6 +165,10 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
     workflow.add_node("execute_action", execute_action_with_config)
     workflow.add_node("verify_evidence", verify_evidence_with_config)
     workflow.add_node("decide_next", decide_next_with_config)
+    workflow.add_node("prepare_review", prepare_review_with_config)
+    workflow.add_node("human_review", human_review_with_config)
+    workflow.add_node("apply_review", apply_review_with_config)
+    workflow.add_node("reject_review", reject_review_with_config)
 
     workflow.set_entry_point("extract")
     workflow.add_conditional_edges(
@@ -165,12 +213,29 @@ def build_vuln_processing_graph(config: Dict) -> StateGraph:
         {
             "store": "store",
             "plan_recovery": "plan_recovery",
+            "prepare_review": "prepare_review",
             "low_quality": "low_quality",
         },
     )
+    workflow.add_conditional_edges(
+        "prepare_review",
+        route_after_prepare_review_with_config,
+        {"human_review": "human_review", "end": END},
+    )
+    workflow.add_conditional_edges(
+        "human_review",
+        route_after_human_review_with_config,
+        {"apply_review": "apply_review", "reject_review": "reject_review"},
+    )
+    workflow.add_conditional_edges(
+        "apply_review",
+        route_after_apply_review_with_config,
+        {"store": "store", "end": END},
+    )
+    workflow.add_edge("reject_review", END)
     workflow.add_edge("reflect", "extract")   # 反思循环
     workflow.add_edge("store",       END)
     workflow.add_edge("low_quality", END)
 
     logger.info("Graph compiled successfully")
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)

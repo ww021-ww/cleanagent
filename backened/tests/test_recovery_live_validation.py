@@ -43,7 +43,7 @@ class StorageProbe:
 
 
 class SuccessfulGraph:
-    async def ainvoke(self, state):
+    async def ainvoke(self, state, config=None):
         return {**state, "final_status": "success"}
 
 

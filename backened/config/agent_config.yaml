@@ -72,6 +72,8 @@ processing:
   # 检查点文件路径
   # 可被环境变量 CHECKPOINT_FILE 覆盖
   checkpoint_file: progress.json
+  # LangGraph 原生状态检查点；审核暂停后可在进程重启后继续
+  checkpoint_db: logs/langgraph_checkpoints.sqlite
 
 # -------------------- 日志配置 --------------------
 logging:

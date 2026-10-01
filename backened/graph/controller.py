@@ -8,6 +8,7 @@ import uuid
 import asyncio
 from pathlib import Path
 from typing import Dict, Any
+from langgraph.types import Command
 
 from graph.state import create_initial_state
 from graph.builder import build_vuln_processing_graph
@@ -30,7 +31,7 @@ def _init_optional(cls, *args, label: str = '', **kwargs):
 class LangGraphController:
     """LangGraph 控制器 - 使用 LangGraph 管理处理流程"""
     
-    def __init__(self, config: Dict):
+    def __init__(self, config: Dict, checkpointer=None):
         """
         初始化控制器
         
@@ -166,12 +167,12 @@ class LangGraphController:
             '_recovery_budget': self.recovery_budget,
         }
 
-        self.graph = build_vuln_processing_graph(self.config)
+        self.graph = build_vuln_processing_graph(self.config, checkpointer=checkpointer)
         self._file_strategies: dict = {}
 
         self.stats = {
             'total': 0, 'success': 0, 'failed': 0,
-            'low_quality': 0, 'skipped': 0,
+            'low_quality': 0, 'skipped': 0, 'review_pending': 0,
             'start_time': None, 'end_time': None,
         }
 
@@ -203,7 +204,8 @@ class LangGraphController:
         logger.info(f"🚀 开始处理: {file_name}")
         
         try:
-            final_state = await self.graph.ainvoke(initial_state)
+            run_config = {'configurable': {'thread_id': task_id}}
+            final_state = await self.graph.ainvoke(initial_state, run_config)
             self.update_stats(final_state)
             
             # 简化完成日志
@@ -227,6 +229,10 @@ class LangGraphController:
                 'final_status': 'failed',
                 'errors': [f"Graph execution error: {str(e)}"]
             }
+
+    async def resume_review(self, task_id: str, review_input: Dict[str, Any]) -> Dict[str, Any]:
+        run_config = {'configurable': {'thread_id': task_id}}
+        return await self.graph.ainvoke(Command(resume=review_input), run_config)
     
     async def process_directory(self, directory: str, pattern: str = '*.html',
                                max_workers: int = 4, timeout: int = 3600) -> Dict[str, Any]:
@@ -359,6 +365,8 @@ class LangGraphController:
             self.stats['low_quality'] += 1
         elif status == 'skipped':
             self.stats['skipped'] += 1
+        elif status == 'review_pending':
+            self.stats['review_pending'] += 1
         else:
             self.stats['failed'] += 1
     
@@ -390,6 +398,7 @@ class LangGraphController:
         print(f"失败:         {stats['failed']}")
         print(f"低质量:       {stats['low_quality']}")
         print(f"跳过:         {stats['skipped']}")
+        print(f"待审核:       {stats['review_pending']}")
         print(f"成功率:       {stats['success_rate']:.2%}")
         
         if stats.get('elapsed_seconds'):

@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 from config import load_yaml_config
 from graph.controller import LangGraphController
+from graph.checkpoint import open_checkpointer
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -103,10 +104,7 @@ async def main():
     logger.info("LangGraph 多智能体漏洞数据处理系统启动")
     logger.info("="*60)
     
-    logger.info("初始化 LangGraph 控制器...")
-    controller = LangGraphController(config)
-    
-    try:
+    async def run(controller):
         if args.file:
             logger.info(f"处理单个文件: {args.file}")
             result = await controller.process_file(args.file)
@@ -128,7 +126,17 @@ async def main():
         
         controller.print_stats()
         logger.info("处理完成！")
-        
+
+    logger.info("初始化 LangGraph 控制器...")
+    try:
+        if config.get('processing', {}).get('dry_run', False):
+            await run(LangGraphController(config))
+        else:
+            checkpoint_path = config.get('processing', {}).get(
+                'checkpoint_db', 'logs/langgraph_checkpoints.sqlite'
+            )
+            async with open_checkpointer(checkpoint_path) as checkpointer:
+                await run(LangGraphController(config, checkpointer=checkpointer))
     except KeyboardInterrupt:
         logger.warning("用户中断处理")
     except Exception as e:

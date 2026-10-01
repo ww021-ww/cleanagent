@@ -376,17 +376,16 @@ async def store_node(state: VulnProcessingState, config: Dict) -> VulnProcessing
         if config.get('agentic', {}).get('smart_merge', {}).get('enabled', False):
             final_data = await asyncio.to_thread(storage.smart_merge, final_data, source)
 
-        success = await asyncio.to_thread(storage.db.upsert, final_data, source)
-
-        # 存储子表数据
-        subtable_success = True
-        subtable_count = 0
-        if success and state.get('cleaned_subtable_data'):
-            subtable_success = await asyncio.to_thread(
-                storage.db.upsert_subtable, state['cleaned_subtable_data'], source
-            )
-            if subtable_success:
-                subtable_count = len(state['cleaned_subtable_data'])
+        subtable_records = state.get('cleaned_subtable_data') or []
+        success = await asyncio.to_thread(
+            storage.db.upsert_with_outbox,
+            final_data,
+            source,
+            subtable_records,
+            state.get('review_task_id'),
+        )
+        subtable_success = success
+        subtable_count = len(subtable_records) if success else 0
 
         if success and subtable_success:
             # 批量存储多漏洞文件的其余漏洞（如 CISA）
@@ -397,7 +396,9 @@ async def store_node(state: VulnProcessingState, config: Dict) -> VulnProcessing
                 cleaner = config.get('_cleaner') or CleanerValidatorAgent(config, None)
                 for vuln_data in all_extracted[1:]:
                     cleaned = cleaner.cleaner.clean(vuln_data)
-                    if await asyncio.to_thread(storage.db.upsert, cleaned, source):
+                    if await asyncio.to_thread(
+                        storage.db.upsert_with_outbox, cleaned, source
+                    ):
                         multi_success += 1
                     else:
                         multi_failed += 1
