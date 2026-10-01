@@ -103,7 +103,14 @@ agentic:
   # Phase 1 异常恢复：只做确定性诊断与脱敏 Trace，不生成或应用字段 Patch
   recovery:
     enabled: true
+    agent_loop_enabled: false
     trace_max_chars: 512
+    max_steps: 3
+    max_tool_calls: 5
+    max_llm_calls: 2
+    deadline_seconds: 30
+    tool_timeout_seconds: 8
+    max_result_chars: 2000
 
   # 反思重试：提取质量不达标时自动升级策略重试
   reflection:

@@ -60,5 +60,12 @@ def test_phase_one_recovery_config_is_bounded():
 
     assert config["agentic"]["recovery"] == {
         "enabled": True,
+        "agent_loop_enabled": False,
         "trace_max_chars": 512,
+        "max_steps": 3,
+        "max_tool_calls": 5,
+        "max_llm_calls": 2,
+        "deadline_seconds": 30,
+        "tool_timeout_seconds": 8,
+        "max_result_chars": 2000,
     }

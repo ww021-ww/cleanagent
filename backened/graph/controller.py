@@ -116,6 +116,36 @@ class LangGraphController:
         self.extractor_agent = _init_optional(ExtractorAgent,         _shared_cfg, None, label='ExtractorAgent')
         self.cleaner_agent   = _init_optional(CleanerValidatorAgent,  _shared_cfg, None, label='CleanerAgent')
 
+        # 受约束恢复循环：复用 Cleaner 的模型，只在显式开关开启时初始化
+        self.recovery_planner = None
+        self.recovery_registry = None
+        self.recovery_guard = None
+        self.recovery_verifier = None
+        self.recovery_budget = None
+        recovery_cfg = agentic.get('recovery', {})
+        if recovery_cfg.get('enabled') and recovery_cfg.get('agent_loop_enabled'):
+            from agent.recovery.guard import RecoveryActionGuard
+            from agent.recovery.models import RecoveryBudget
+            from agent.recovery.planner import ConstrainedRecoveryPlanner
+            from agent.recovery.tool_registry import RecoveryToolRegistry
+            from agent.recovery.verifier import EvidenceVerifier
+            self.recovery_budget = RecoveryBudget(
+                max_steps=recovery_cfg.get('max_steps', 3),
+                max_tool_calls=recovery_cfg.get('max_tool_calls', 5),
+                max_llm_calls=recovery_cfg.get('max_llm_calls', 2),
+                deadline_seconds=recovery_cfg.get('deadline_seconds', 30),
+            )
+            self.recovery_registry = RecoveryToolRegistry(
+                nvd_api_key=agentic.get('tools', {}).get('nvd_api_key', ''),
+                max_result_chars=recovery_cfg.get('max_result_chars', 2000),
+            )
+            self.recovery_guard = RecoveryActionGuard(self.recovery_budget)
+            if self.cleaner_agent:
+                self.recovery_verifier = EvidenceVerifier(self.cleaner_agent.config_loader)
+                self.recovery_planner = ConstrainedRecoveryPlanner(
+                    self.cleaner_agent.llm, self.recovery_registry
+                )
+
         # 注入全部对象到 config，节点通过 config.get('_xxx') 访问
         self.config = {
             **config,
@@ -126,6 +156,11 @@ class LangGraphController:
             '_storage': self.storage_agent,
             '_extractor': self.extractor_agent,
             '_cleaner': self.cleaner_agent,
+            '_recovery_planner': self.recovery_planner,
+            '_recovery_registry': self.recovery_registry,
+            '_recovery_guard': self.recovery_guard,
+            '_recovery_verifier': self.recovery_verifier,
+            '_recovery_budget': self.recovery_budget,
         }
 
         self.graph = build_vuln_processing_graph(self.config)
@@ -141,6 +176,7 @@ class LangGraphController:
             ('Memory', self.memory), ('RAG', self.rag),
             ('ToolAgent', self.tool_agent), ('SkillRegistry', self.skill_registry),
             ('Planner', self.planner), ('ChatAgent', self.chat_agent),
+            ('RecoveryAgent', self.recovery_planner),
         ] if o]
         logger.info(f"LangGraphController initialized. 活跃模块: {active or ['基础']}")
     

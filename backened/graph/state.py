@@ -44,6 +44,7 @@ class VulnProcessingState(TypedDict):
     # ========== 受约束恢复循环 ==========
     recovery_decision: Optional[Dict]
     pending_action: Optional[Dict]
+    action_rejection: Optional[Dict]
     observations: List[Dict]
     proposed_patches: List[Dict]
     verification: Optional[Dict]
@@ -100,6 +101,7 @@ def create_initial_state(task_id: str, file_path: str) -> VulnProcessingState:
         trace_events=[],
         recovery_decision=None,
         pending_action=None,
+        action_rejection=None,
         observations=[],
         proposed_patches=[],
         verification=None,

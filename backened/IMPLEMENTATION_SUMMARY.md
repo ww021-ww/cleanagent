@@ -144,3 +144,17 @@ C/I/A: N→None, P→Partial, C→Complete
 
 配置位于 `config/agent_config.yaml` 的 `agentic.recovery`。Phase 1 不包含字段 Patch 应用、受约束 LLM Planner、HIL 审核或跨库补偿，这些能力留给后续阶段。
 
+---
+
+## 异常恢复 Phase 2
+
+开启 `agentic.recovery.agent_loop_enabled` 后，低质量样本执行：
+
+`Diagnose → Plan → Guard → Execute → Verify → Decide`。
+
+- Planner 只能选择 `search_raw_text`、`parse_json_path`、`normalize_field`、`nvd_lookup` 或明确停止，不能直接修改候选数据。
+- Guard 校验工具白名单、参数模型、目标字段、真实 CVE ID 和步数/工具/LLM/时间预算。
+- Verifier 仅接受带来源与位置的证据；权威字段只接受原文件确定性解析、规范化结果或 NVD 官方数据，冲突进入人工复核。
+- 只有验证通过且重新计算后的质量分达到阈值才进入 Store；否则在预算内重新规划，预算耗尽后进入 LowQuality。
+- 默认关闭新循环，原有 `rule → hybrid → llm_full` 路径保持兼容；开启后旧的自由字段补全旁路自动停用。
+

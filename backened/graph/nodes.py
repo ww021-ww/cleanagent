@@ -206,9 +206,13 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
         recovered_fields = []
         recovery_attempted = state.get('recovery_attempted', False)
         recovery_cfg = config.get('agentic', {}).get('field_recovery', {})
+        agent_loop_enabled = config.get('agentic', {}).get('recovery', {}).get(
+            'agent_loop_enabled', False
+        )
         current_strategy = state.get('extraction_strategy', 'rule')
         if (
             recovery_cfg.get('enabled', False)
+            and not agent_loop_enabled
             and current_strategy == 'hybrid'
             and validation_result.get('errors')
             and state.get('raw_content')
@@ -234,7 +238,7 @@ async def clean_validate_node(state: VulnProcessingState, config: Dict) -> VulnP
 
         # ToolAgent：LLM 修复后仍有缺失字段，尝试外部工具补全
         tool_agent = config.get('_tool_agent')
-        if tool_agent and validation_result.get('errors'):
+        if tool_agent and not agent_loop_enabled and validation_result.get('errors'):
             still_missing = [
                 e.replace('Missing required field: ', '')
                 for e in validation_result['errors']
@@ -431,12 +435,14 @@ def mark_low_quality_node(state: VulnProcessingState, config: Dict) -> VulnProce
             strategy=state.get('extraction_strategy', 'rule'),
         )
 
+    decision = state.get('final_decision') or 'ABORT'
+    reason = 'human_review_required' if decision == 'REVIEW' else 'recovery_exhausted'
     return {
         **state,
         'final_status': 'low_quality',
         'end_time': time.time(),
         'trace_events': append_trace_event(
-            state, 'low_quality', 'recovery_exhausted', decision='ABORT'
+            state, 'low_quality', reason, decision=decision
         ),
     }
 
