@@ -9,13 +9,6 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-_EMBED_BASE = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1").rstrip("/")
-_EMBED_URL = _EMBED_BASE + "/embeddings"
-_EMBED_MODEL = os.getenv("EMBED_MODEL") or os.getenv("OPENAI_EMBED_MODEL") or "text-embedding-3-small"
-_EMBED_API_KEY = os.getenv("OPENAI_API_KEY", "")
-_EMBED_DIM = int(os.getenv("EMBED_DIM", "0") or 0)
-
-
 class OllamaEmbedding:
     """
     基于 OpenAI 兼容接口的文本向量化工具
@@ -24,12 +17,15 @@ class OllamaEmbedding:
     """
 
     def __init__(self, base_url: str = None, model: str = None, dim: Optional[int] = None):
-        self.url = (base_url or _EMBED_URL).rstrip("/")
+        self.url = (
+            base_url
+            or os.getenv("EMBED_API_BASE", "https://api.openai.com/v1")
+        ).rstrip("/")
         if not self.url.endswith("/embeddings"):
             self.url = self.url + "/embeddings"
-        self.model = model or _EMBED_MODEL
-        self.api_key = _EMBED_API_KEY
-        self._dim: int = int(dim or _EMBED_DIM or 0)
+        self.model = model or os.getenv("EMBED_MODEL", "text-embedding-3-small")
+        self.api_key = os.getenv("EMBED_API_KEY", "")
+        self._dim: int = int(dim or os.getenv("EMBED_DIM", "0") or 0)
 
     def _fallback_dim(self) -> int:
         return self._dim or 768
@@ -47,8 +43,7 @@ class OllamaEmbedding:
         if not text or not text.strip():
             return self._zero_vector()
         if not self.api_key:
-            logger.warning("Embedding 失败: OPENAI_API_KEY 未配置")
-            return self._zero_vector()
+            raise RuntimeError("EMBED_API_KEY is not configured")
         try:
             resp = requests.post(
                 self.url,
@@ -63,8 +58,7 @@ class OllamaEmbedding:
                 self._dim = len(vector)
             return vector
         except Exception as e:
-            logger.debug(f"Embedding 失败: {e}")
-            return self._zero_vector()
+            raise RuntimeError(f"Embedding request failed: {e}") from e
 
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
         """批量向量化（逐条调用兼容接口）"""

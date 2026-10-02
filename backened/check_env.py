@@ -163,12 +163,12 @@ def check_openai_compatible_llm():
 # 5. OpenAI 兼容 Embedding
 # ─────────────────────────────────────────────────────────────────────────────
 def check_openai_compatible_embed():
-    base  = os.getenv("OPENAI_API_BASE", "")
+    base  = os.getenv("EMBED_API_BASE", "")
     model = os.getenv("EMBED_MODEL", "text-embedding-3-small")
-    api_key = os.getenv("OPENAI_API_KEY", "")
+    api_key = os.getenv("EMBED_API_KEY", "")
 
     if not api_key:
-        _record("兼容 Embedding", "warn", "OPENAI_API_KEY 未设置，跳过")
+        _record("兼容 Embedding", "warn", "EMBED_API_KEY 未设置，跳过")
         return
 
     try:

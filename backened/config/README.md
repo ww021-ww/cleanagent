@@ -307,6 +307,21 @@ ENABLE_ENRICHMENT=true
 
 ## HIL 审核与 Milvus Outbox
 
+聊天模型与 Embedding 必须使用独立配置，避免把 DeepSeek 地址误用于向量接口：
+
+```env
+OPENAI_API_BASE=https://api.deepseek.com
+OPENAI_API_KEY=<deepseek-key>
+DEFAULT_LLM_MODEL=deepseek-v4-pro
+
+EMBED_API_BASE=https://api.siliconflow.cn/v1
+EMBED_API_KEY=<siliconflow-key>
+EMBED_MODEL=Qwen/Qwen3-VL-Embedding-8B
+EMBED_DIM=4096
+```
+
+Embedding 请求失败会直接让 Outbox 任务进入重试，不再使用零向量继续写入。
+
 设置 `HIL_REVIEW_TOKEN`，并确保 `processing.checkpoint_db` 指向可写的
 `logs/processing_state.db`。审核任务使用 `task_id` 从 LangGraph Checkpoint
 恢复，所以该文件不能在待审核任务完成前删除。
