@@ -99,6 +99,12 @@ async def apply_review_node(state: VulnProcessingState, config) -> VulnProcessin
         "quality_threshold", 0.7
     )
     if not validation.get("is_valid") or quality_score < threshold:
+        error = "Reviewed data failed validation"
+        await asyncio.to_thread(
+            storage.db.reliability.release_review,
+            state.get("review_task_id") or state["task_id"],
+            error,
+        )
         return {
             **state,
             "cleaned_data": cleaned,
@@ -106,7 +112,7 @@ async def apply_review_node(state: VulnProcessingState, config) -> VulnProcessin
             "quality_score": quality_score,
             "review_status": "invalid",
             "final_status": "failed",
-            "errors": state.get("errors", []) + ["Reviewed data failed validation"],
+            "errors": state.get("errors", []) + [error],
         }
     return {
         **state,

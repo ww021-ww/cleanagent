@@ -27,13 +27,18 @@ def list_reviews(
     status: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    _token=Depends(require_review_token),
     runtime=Depends(get_processing_runtime),
 ):
     return ReviewService(runtime).list(status=status, page=page, page_size=page_size)
 
 
 @router.get("/{task_id}")
-def get_review(task_id: str, runtime=Depends(get_processing_runtime)):
+def get_review(
+    task_id: str,
+    _token=Depends(require_review_token),
+    runtime=Depends(get_processing_runtime),
+):
     return ReviewService(runtime).get(task_id)
 
 

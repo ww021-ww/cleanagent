@@ -97,12 +97,28 @@ def test_list_and_detail_reviews_do_not_expose_raw_content(review_api):
         },
     )
 
-    listed = client.get("/api/v1/reviews").json()
-    detail = client.get("/api/v1/reviews/review-1").json()
+    listed = client.get("/api/v1/reviews", headers=_auth()).json()
+    detail = client.get("/api/v1/reviews/review-1", headers=_auth()).json()
 
     assert "raw_content" not in listed["items"][0]["candidate_data"]
     assert "raw_content" not in detail["candidate_data"]
     assert "SECRET" not in str(listed) + str(detail)
+
+
+def test_review_reads_require_configured_bearer_token(review_api):
+    client, runtime = review_api
+    _enqueue(runtime)
+
+    assert client.get("/api/v1/reviews").status_code == 401
+    assert client.get("/api/v1/reviews/review-1").status_code == 401
+    assert client.get(
+        "/api/v1/reviews",
+        headers={"Authorization": "Bearer wrong"},
+    ).status_code == 401
+    assert client.get(
+        "/api/v1/reviews/review-1",
+        headers={"Authorization": "Bearer wrong"},
+    ).status_code == 401
 
 
 def test_review_write_requires_configured_bearer_token(review_api):

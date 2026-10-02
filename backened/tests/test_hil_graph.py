@@ -37,6 +37,11 @@ class FakeReliability:
         self.rows[task_id].update(status="rejected", reviewer=reviewer, note=note)
         return True
 
+    def release_review(self, task_id, error):
+        row = self.rows[task_id]
+        if row["status"] == "processing":
+            row.update(status="pending", last_error=str(error))
+
 
 class FakeDB:
     def __init__(self):
@@ -74,6 +79,8 @@ class FakeCleaner:
         return {"is_valid": not errors, "errors": errors, "warnings": []}
 
     def calculate_quality_score(self, data, validation, confidence):
+        if data.get("description") == "too short":
+            return 0.1
         return 0.9 if validation["is_valid"] else 0.1
 
 
@@ -185,6 +192,31 @@ async def test_approved_review_resumes_same_thread_and_stores(monkeypatch):
     assert db.stored[0]["review_task_id"] == "task-approve"
     assert db.stored[0]["data"]["description"] == "verified description"
     assert db.reliability.rows["task-approve"]["status"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_low_quality_review_releases_claim_for_correction(monkeypatch):
+    db = FakeDB()
+    graph, _, _ = await _start_review(
+        monkeypatch, db, "task-low-quality", InMemorySaver()
+    )
+    db.reliability.claim("task-low-quality")
+    controller = object.__new__(LangGraphController)
+    controller.graph = graph
+
+    result = await controller.resume_review(
+        "task-low-quality",
+        {
+            "action": "approve",
+            "reviewer": "alice",
+            "corrected_fields": {"description": "too short"},
+        },
+    )
+
+    assert result["final_status"] == "failed"
+    assert db.reliability.rows["task-low-quality"]["status"] == "pending"
+    assert "failed validation" in db.reliability.rows["task-low-quality"]["last_error"]
+    assert db.stored == []
 
 
 @pytest.mark.asyncio
